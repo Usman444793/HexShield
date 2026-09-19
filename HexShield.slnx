@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="HexShield.Client/HexShield.Client.csproj" />
+  <Project Path="HexShield/HexShield.csproj" />
+</Solution>
