@@ -361,3 +361,29 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# ==========================================
+# Local Visual Studio & Build Directories
+# ==========================================
+# (Visual Studio hidden workspace folder)
+.vs/
+
+# (Compiled binaries and temporary build objects)
+[Bb]in/
+[Oo]bj/
+
+# ==========================================
+# Application Configuration & Settings
+# ==========================================
+# Environment-specific settings (e.g., appsettings.Development.json)
+appsettings.*.json
+!appsettings.json
+
+# Local developer secrets & override files
+appsettings.local.json
+appsettings.Development.local.json
+secrets.json
+
+# Azure / Local environment files
+local.settings.json
+.env
+*.env
