@@ -15,4 +15,5 @@ public class ApplicationUser : IdentityUser,IMultiTenant
     public TeacherProfile? TeacherProfile { get; set; }
     public StudentProfile? StudentProfile { get; set; }
     public ICollection<UserOrganizationRole> OrganizationRoles { get; set; } = new List<UserOrganizationRole>();
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 }

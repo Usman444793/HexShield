@@ -11,5 +11,5 @@ public class LessonProgress : BaseEntity
     public int LessonId { get; set; }
     public Lesson Lesson { get; set; } = null!;
     public bool IsCompleted { get; set; } = false;
-    public DateTime? CompletedAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
 }

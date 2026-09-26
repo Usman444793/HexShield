@@ -1,18 +1,28 @@
-﻿using System.Linq.Expressions;
+using HexShield.Infrastructure.Tenancy;
 using HexShield.Models.Academic;
 using HexShield.Models.Assignments;
 using HexShield.Models.Common;
 using HexShield.Models.Identity;
 using HexShield.Models.Progress;
 using HexShield.Models.Quizzes;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 namespace HexShield.Data;
-public class ApplicationDbContext : IdentityDbContext<ApplicationUser,ApplicationRole,string>
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser,ApplicationRole,string>,IDataProtectionKeyContext
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+    private readonly ITenantContext? _tenantContext;
+    public int CurrentTenantId => _tenantContext?.TenantId ?? 0;
+
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ITenantContext? tenantContext = null) : base(options)
     {
+        _tenantContext = tenantContext;
     }
+    public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = default!;
+    public DbSet<RefreshToken> RefreshTokens { get; set; } = default!;
+    public DbSet<ApplicationPermission> Permissions => Set<ApplicationPermission>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     //academics
     public DbSet<Course> Courses => Set<Course>();
     public DbSet<Enrollment> Enrollments => Set<Enrollment>();
@@ -49,23 +59,31 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser,Applicatio
     private void ProcessAuditingAndSoftDelete()
     {
         var now = DateTimeOffset.UtcNow;
-        foreach(var entry in ChangeTracker.Entries<BaseEntity>())
+        foreach(var entry in ChangeTracker.Entries())
         {
-            switch (entry.State)
+            if (entry.Entity is BaseEntity baseEntity)
             {
-                case EntityState.Added:
-                    entry.Entity.CreatedAt = now;
-                    entry.Entity.IsDeleted = false;
-                    break;
-                case EntityState.Modified:
-                    entry.Entity.UpdatedAt = now;
-                    break;
-                case EntityState.Deleted:
-                    entry.State = EntityState.Modified;
-                    entry.Entity.IsDeleted = true;
-                    entry.Entity.DeletedAt = now;
-                    entry.Entity.UpdatedAt = now;
-                    break;
+                switch (entry.State)
+                {
+                    case EntityState.Added:
+                        baseEntity.CreatedAt = now;
+                        baseEntity.IsDeleted = false;
+                        break;
+                    case EntityState.Modified:
+                        baseEntity.UpdatedAt = now;
+                        break;
+                    case EntityState.Deleted:
+                        entry.State = EntityState.Modified;
+                        baseEntity.IsDeleted = true;
+                        baseEntity.DeletedAt = now;
+                        baseEntity.UpdatedAt = now;
+                        break;
+                }
+            }
+
+            if (entry.State == EntityState.Added && entry.Entity is IMultiTenant multiTenant && multiTenant.TenantId == 0 && CurrentTenantId != 0)
+            {
+                multiTenant.TenantId = CurrentTenantId;
             }
         }
     }
@@ -80,7 +98,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser,Applicatio
         ConfigureQuizRelationships(builder);
         ConfigureProgressRelationships(builder);
         ConfigureIndexes(builder);
-        ConfigureSoftDelete(builder);
+        ConfigureGlobalFilters(builder);
     }
     //Identity
     private static void ConfigureIdentity(ModelBuilder builder)
@@ -95,6 +113,24 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser,Applicatio
         builder.Entity<ApplicationRole>(entity =>
         {
             entity.Property(r => r.Description).HasMaxLength(250);
+        });
+
+        builder.Entity<RolePermission>(entity =>
+        {
+            entity.HasKey(rp => new { rp.RoleId, rp.PermissionId });
+            entity.HasOne(rp => rp.Role).WithMany(r => r.RolePermissions).HasForeignKey(rp => rp.RoleId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ApplicationPermission>(entity =>
+        {
+            entity.HasIndex(p => p.Name).IsUnique();
+        });
+
+        builder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(rt => rt.Id);
+            entity.HasIndex(rt => rt.TokenHash).IsUnique();
+            entity.HasOne(rt => rt.User).WithMany(u => u.RefreshTokens).HasForeignKey(rt => rt.UserId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
         });
     }
     //tenant
@@ -218,8 +254,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser,Applicatio
         builder.Entity<QuizAnswerOption>(entity =>
         {
             entity.HasKey(x => new { x.QuizAnswerId, x.QuestionOptionId });
-            entity.HasOne(x => x.QuizAnswer).WithMany(x => x.SelectedOptions).HasForeignKey(x => x.QuizAnswerId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(x => x.QuestionOption).WithMany().HasForeignKey(x => x.QuestionOptionId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.QuizAnswer).WithMany(x => x.SelectedOptions).HasForeignKey(x => x.QuizAnswerId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.QuestionOption).WithMany().HasForeignKey(x => x.QuestionOptionId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
         });
     }
     //Progress
@@ -238,22 +274,46 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser,Applicatio
         builder.Entity<ApplicationUser>().HasIndex(u => new { u.TenantId, u.NormalizedUserName }).IsUnique();
         builder.Entity<ApplicationUser>().HasIndex(u => new { u.TenantId, u.NormalizedEmail }).IsUnique().HasFilter("[NormalizedEmail] IS NOT NULL");
     }
-    //Soft Delete
-    private static void ConfigureSoftDelete(ModelBuilder builder)
+    //Global Query Filters (Soft Delete + Multi-Tenancy)
+    private void ConfigureGlobalFilters(ModelBuilder builder)
     {
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
-            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            var filter = CreateGlobalFilter(entityType.ClrType);
+            if (filter != null)
             {
-                builder.Entity(entityType.ClrType).HasQueryFilter(CreateSoftDeleteFilter(entityType.ClrType));
+                builder.Entity(entityType.ClrType).HasQueryFilter(filter);
             }
         }
     }
-    private static LambdaExpression CreateSoftDeleteFilter(Type entityType)
+    private LambdaExpression? CreateGlobalFilter(Type entityType)
     {
-        var parameter = Expression.Parameter(entityType,"e");
-        var property =  Expression.Property(parameter,nameof(BaseEntity.IsDeleted));
-        var condition = Expression.Equal(property,Expression.Constant(false));
-        return Expression.Lambda(condition,parameter);
+        var parameter = Expression.Parameter(entityType, "e");
+        Expression? combinedCondition = null;
+
+        if (typeof(BaseEntity).IsAssignableFrom(entityType))
+        {
+            var isDeletedProp = Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
+            combinedCondition = Expression.Equal(isDeletedProp, Expression.Constant(false));
+        }
+
+        if (typeof(IMultiTenant).IsAssignableFrom(entityType))
+        {
+            var currentTenantProp = Expression.Property(Expression.Constant(this), nameof(CurrentTenantId));
+            var isTenantZero = Expression.Equal(currentTenantProp, Expression.Constant(0));
+
+            var tenantIdProp = Expression.Property(parameter, nameof(IMultiTenant.TenantId));
+            var tenantMatches = Expression.Equal(tenantIdProp, currentTenantProp);
+
+            // When CurrentTenantId == 0 (no tenant resolved, e.g. during login/register),
+            // bypass the tenant filter so all tenants are visible.
+            var tenantCondition = Expression.OrElse(isTenantZero, tenantMatches);
+
+            combinedCondition = combinedCondition == null
+                ? tenantCondition
+                : Expression.AndAlso(combinedCondition, tenantCondition);
+        }
+
+        return combinedCondition != null ? Expression.Lambda(combinedCondition, parameter) : null;
     }
 }

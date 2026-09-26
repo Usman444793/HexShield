@@ -18,7 +18,7 @@ public class Submission : BaseEntity
     public int? Score { get; set; }
     [MaxLength(4000)]
     public string? Feedback { get; set; }
-    public DateTime? GradedAt { get; set; }
+    public DateTimeOffset? GradedAt { get; set; }
     public string? GradedById { get; set; }
     public ApplicationUser? GradedBy { get; set; }
 }

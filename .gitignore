@@ -387,3 +387,4 @@ secrets.json
 local.settings.json
 .env
 *.env
+/HexShield/appsettings.json
