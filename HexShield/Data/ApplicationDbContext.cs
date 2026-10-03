@@ -99,6 +99,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser,Applicatio
         ConfigureProgressRelationships(builder);
         ConfigureIndexes(builder);
         ConfigureGlobalFilters(builder);
+        foreach(var entityType in builder.Model.GetEntityTypes())
+        {
+            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                builder.Entity(entityType.ClrType).Property("RowVersion").IsRowVersion().IsConcurrencyToken();
+            }
+        }
     }
     //Identity
     private static void ConfigureIdentity(ModelBuilder builder)
@@ -106,6 +113,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser,Applicatio
         builder.Entity<ApplicationUser>(entity =>
         {
             entity.Property(u => u.FullName).HasMaxLength(100);
+            entity.Property(u => u.RowVersion).IsRowVersion().IsConcurrencyToken();
             entity.HasOne(u => u.Tenant).WithMany(t => t.Users).HasForeignKey(t => t.TenantId).OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(u => u.NormalizedUserName).HasDatabaseName("UserNameIndex").IsUnique(false);
             entity.HasIndex(u => u.NormalizedEmail).HasDatabaseName("EmailIndex").IsUnique(false);

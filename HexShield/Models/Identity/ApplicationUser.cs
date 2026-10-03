@@ -12,6 +12,8 @@ public class ApplicationUser : IdentityUser,IMultiTenant
     public bool IsActive { get; set; } = true;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? LastLoginAt { get; set; }
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
     public TeacherProfile? TeacherProfile { get; set; }
     public StudentProfile? StudentProfile { get; set; }
     public ICollection<UserOrganizationRole> OrganizationRoles { get; set; } = new List<UserOrganizationRole>();

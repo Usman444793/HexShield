@@ -1,0 +1,115 @@
+@page "/register"
+@layout PublicLayout
+@rendermode InteractiveAuto
+@inject HttpClient Http
+@inject CustomAuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Create Account | HexShield</PageTitle>
+
+<div class="auth-page">
+    <div class="auth-card register-card">
+        <div class="auth-header">
+            <div class="auth-logo">H</div>
+            <h1>Create your account</h1>
+            <p>Start learning with HexShield.</p>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="auth-error">
+                @errorMessage
+            </div>
+        }
+        <EditForm Model="@registerRequest" OnValidSubmit="@RegisterAsync" FormName="register-form">
+            <DataAnnotationsValidator />
+            <div class="form-row">
+                <div class="form-group">
+                    <label>First name</label>
+                    <InputText @bind-Value="registerRequest.FirstName" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>Last name</label>
+                    <InputText @bind-Value="registerRequest.LastName" class="form-control" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <InputText @bind-Value="registerRequest.Email" class="form-control" type="email" />
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <InputText @bind-Value="registerRequest.Password"
+                           class="form-control"
+                           type="password" />
+                <small>
+                    Minimum 12 characters with uppercase,
+                    lowercase, digit and special character.
+                </small>
+            </div>
+            <div class="form-group">
+                <label>Department</label>
+                <InputText @bind-Value="registerRequest.Department"
+                           class="form-control" />
+            </div>
+            <button type="submit" class="auth-submit" disabled="@isLoading">
+                @(isLoading ? "Creating account..." : "Create Account")
+            </button>
+        </EditForm>
+
+        <div class="auth-footer">
+            Already have an account?
+            <a href="/login">Sign in</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterRequestDto registerRequest = new();
+
+    private bool isLoading;
+    private string? errorMessage;
+
+    private async Task RegisterAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/auth/register", registerRequest);
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                errorMessage = "Registration failed. Please check your information.";
+                return;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
+            if (result == null || string.IsNullOrWhiteSpace(result.AccessToken))
+            {
+                errorMessage = "Registration succeeded but authentication failed.";
+                return;
+            }
+
+            AuthState.MarkUserAsAuthenticated(result.AccessToken);
+
+            if (result.Roles.Contains("Admin"))
+            {
+                Navigation.NavigateTo("/admin");
+            }
+            else
+            {
+                Navigation.NavigateTo("/student");
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to connect to the registration service.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

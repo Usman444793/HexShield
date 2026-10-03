@@ -1,0 +1,126 @@
+.public-layout {
+    min-height: 100vh;
+    background: #f8fafc;
+    color: #0f172a;
+}
+.public-navbar {
+    height: 72px;
+    padding: 0 7%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255,255,255,.94);
+    border-bottom: 1px solid #e2e8f0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+}
+.public-brand {
+    display: flex;
+    align-items: center;
+}
+.brand-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: #0f172a;
+    font-size: 20px;
+    font-weight: 800;
+}
+.brand-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    background: #0f766e;
+    color: white;
+    font-weight: 800;
+}
+.public-nav {
+    display: flex;
+    gap: 30px;
+}
+    .public-nav a,
+    .sign-in-link {
+        color: #475569;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+    }
+        .public-nav a:hover,
+        .sign-in-link:hover {
+            color: #0f766e;
+        }
+.public-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+.get-started-btn {
+    background: #0f766e;
+    color: white;
+    text-decoration: none;
+    padding: 11px 18px;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 700;
+}
+    .get-started-btn:hover {
+        background: #115e59;
+    }
+.public-footer {
+    background: #0b1728;
+    color: #cbd5e1;
+    padding: 60px 8%;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 50px;
+}
+    .public-footer p {
+        max-width: 330px;
+        line-height: 1.7;
+        color: #94a3b8;
+    }
+.footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: white;
+    font-size: 18px;
+}
+.footer-column {
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+}
+    .footer-column strong {
+        color: white;
+        margin-bottom: 5px;
+    }
+    .footer-column a {
+        color: #94a3b8;
+        text-decoration: none;
+        font-size: 14px;
+    }
+        .footer-column a:hover {
+            color: white;
+        }
+@media(max-width: 900px) {
+    .public-nav {
+        display: none;
+    }
+    .public-navbar {
+        padding: 0 5%;
+    }
+    .public-footer {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+@media(max-width: 600px) {
+    .public-footer {
+        grid-template-columns: 1fr;
+    }
+}

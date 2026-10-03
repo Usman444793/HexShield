@@ -1,0 +1,63 @@
+﻿@inherits LayoutComponentBase
+
+<div class="public-layout">
+    <header class="public-navbar">
+        <div class="public-brand">
+            <a href="/" class="brand-link">
+                <div class="brand-mark">H</div>
+                <span>HexShield</span>
+            </a>
+        </div>
+
+        <nav class="public-nav">
+            <a href="#platform">Platform</a>
+            <a href="#courses">Courses</a>
+            <a href="#instructors">Instructors</a>
+            <a href="#enterprise">Enterprise</a>
+            <a href="#pricing">Pricing</a>
+        </nav>
+
+        <div class="public-actions">
+            <a href="/login" class="sign-in-link">Sign in</a>
+            <a href="/register" class="get-started-btn">
+                Get Started
+            </a>
+        </div>
+    </header>
+
+    <main>
+        @Body
+    </main>
+    <footer class="public-footer">
+        <div>
+            <div class="footer-brand">
+                <div class="brand-mark">H</div>
+                <strong>HexShield</strong>
+            </div>
+
+            <p>
+                Secure learning infrastructure for modern
+                organizations and educational teams.
+            </p>
+        </div>
+
+        <div class="footer-column">
+            <strong>Platform</strong>
+            <a href="#platform">Overview</a>
+            <a href="#courses">Courses</a>
+            <a href="#instructors">Instructors</a>
+        </div>
+
+        <div class="footer-column">
+            <strong>Solutions</strong>
+            <a href="#enterprise">Enterprise</a>
+            <a href="#pricing">Pricing</a>
+        </div>
+
+        <div class="footer-column">
+            <strong>Account</strong>
+            <a href="/login">Sign in</a>
+            <a href="/register">Get started</a>
+        </div>
+    </footer>
+</div>

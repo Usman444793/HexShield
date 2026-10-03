@@ -1,0 +1,74 @@
+@page "/admin"
+@rendermode InteractiveAuto
+@using Microsoft.AspNetCore.Authorization
+@*attribute [Authorize(Policy = "AdminOnly")]*@
+@layout HexShield.Client.Components.Layout.AdminLayout
+
+<PageTitle>Admin Command Center</PageTitle>
+<div class="admin-dashboard">
+    <div class="page-heading">
+        <div>
+            <span class="eyebrow">
+                HEXSHIELD ADMINISTRATION
+            </span>
+            <h1>Admin Command Center</h1>
+            <p>
+                Manage users, organizations, access control and security.
+            </p>
+        </div>
+        <div class="system-status">
+            <span></span>
+            All core services operational
+        </div>
+    </div>
+    <div class="admin-cards">
+        <div class="admin-card">
+            <span class="card-label">
+                USER MANAGEMENT
+            </span>
+            <h2>Users</h2>
+            <p>
+                Create, update, activate and deactivate users.
+            </p>
+            <a href="/admin/users">
+                Manage Users →
+            </a>
+        </div>
+        <div class="admin-card">
+            <span class="card-label">
+                MULTI-TENANCY
+            </span>
+            <h2>Organizations</h2>
+            <p>
+                Manage tenant organization structure and boundaries.
+            </p>
+            <a href="/admin/organizations">
+                Manage Organizations →
+            </a>
+        </div>
+        <div class="admin-card">
+            <span class="card-label">
+                RBAC
+            </span>
+            <h2>Access Control</h2>
+            <p>
+                Assign and remove application roles for users.
+            </p>
+            <a href="/admin/access-control">
+                Manage Access →
+            </a>
+        </div>
+        <div class="admin-card">
+            <span class="card-label">
+                SECURITY
+            </span>
+            <h2>Security</h2>
+            <p>
+                Review authentication and security infrastructure.
+            </p>
+            <a href="/admin/security">
+                Security Center →
+            </a>
+        </div>
+    </div>
+</div>

@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using HexShield.Infrastructure.Tenancy;
-using HexShield.Models.DTOs;
 using HexShield.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
+using HexShield.Models.DTOs;
 
 namespace HexShield.Controllers;
 

@@ -1,0 +1,33 @@
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+@using HexShield.Client.Components.Layout
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(Program).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData"
+                                DefaultLayout="@typeof(PublicLayout)">
+                <NotAuthorized>
+                    <NotAuthorizedView />
+                </NotAuthorized>
+                <Authorizing>
+                    <div class="auth-loading">
+                        <div class="spinner"></div>
+                        <p>Checking authorization...</p>
+                    </div>
+                </Authorizing>
+            </AuthorizeRouteView>
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(PublicLayout)">
+                <div class="not-found-page">
+                    <h1>404</h1>
+                    <h2>Page not found</h2>
+                    <p>The page you're looking for doesn't exist.</p>
+                    <a href="/" class="primary-button">Back to Home</a>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

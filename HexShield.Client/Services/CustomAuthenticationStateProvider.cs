@@ -1,78 +1,206 @@
 ﻿using System.Net.Http.Headers;
-using System.Text.Json;
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.JSInterop;
+
 namespace HexShield.Client.Services;
+
 public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 {
     private readonly HttpClient _httpClient;
-    private string _currentToken = string.Empty;
-    public CustomAuthenticationStateProvider (HttpClient httpClient,string currentToken)
+    private readonly IJSRuntime _jsRuntime;
+
+    private string? _accessToken;
+
+    private const string TokenStorageKey = "hexshield_access_token";
+
+    public CustomAuthenticationStateProvider(HttpClient httpClient, IJSRuntime jsRuntime)
     {
         _httpClient = httpClient;
-        _currentToken = currentToken;
+        _jsRuntime = jsRuntime;
     }
-    public override Task<AuthenticationState> GetAuthenticationStateAsync()
+
+    public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
-        if (string.IsNullOrWhiteSpace(_currentToken))
+        // Try to restore token from localStorage when available
+        if (string.IsNullOrWhiteSpace(_accessToken))
         {
-            return Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
+            try
+            {
+                _accessToken = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", TokenStorageKey);
+            }
+            catch
+            {
+                // ignore JS interop failures
+            }
         }
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _currentToken);
-        var identity = new ClaimsIdentity(ParseClaimsFromJwt(_currentToken), "jwt");
-        var user = new ClaimsPrincipal(identity);
-        return Task.FromResult(new AuthenticationState(user));
+
+        if (string.IsNullOrWhiteSpace(_accessToken))
+        {
+            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+        }
+
+        try
+        {
+            var claims = ParseClaimsFromJwt(_accessToken);
+
+            var identity = new ClaimsIdentity(
+                claims,
+                authenticationType: "Bearer",
+                nameType: ClaimTypes.Name,
+                roleType: ClaimTypes.Role);
+
+            var user = new ClaimsPrincipal(identity);
+
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", _accessToken);
+
+            return new AuthenticationState(user);
+        }
+        catch
+        {
+            _accessToken = null;
+            _httpClient.DefaultRequestHeaders.Authorization = null;
+
+            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+        }
     }
-    public void MarkUserAsAuthenticated(string token)
+
+    public void MarkUserAsAuthenticated(string accessToken)
     {
-        _currentToken = token;
-        var identity = new ClaimsIdentity(ParseClaimsFromJwt(_currentToken), "jwt");
+        _accessToken = accessToken;
+
+        _httpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var claims = ParseClaimsFromJwt(accessToken);
+
+        var identity = new ClaimsIdentity(
+            claims,
+            authenticationType: "Bearer",
+            nameType: ClaimTypes.Name,
+            roleType: ClaimTypes.Role);
+
         var user = new ClaimsPrincipal(identity);
-        NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
+
+        NotifyAuthenticationStateChanged(
+            Task.FromResult(
+                new AuthenticationState(user)));
+        // Persist token to localStorage so auth survives page refresh
+        try
+        {
+            _jsRuntime.InvokeVoidAsync("localStorage.setItem", TokenStorageKey, accessToken);
+        }
+        catch
+        {
+            // ignore persisting errors
+        }
     }
+
     public void MarkUserAsLoggedOut()
     {
-        _currentToken = string.Empty;
+        _accessToken = null;
+
         _httpClient.DefaultRequestHeaders.Authorization = null;
-        var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
-        NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(anonymous)));
+
+        var anonymous = new ClaimsPrincipal(
+            new ClaimsIdentity());
+
+        NotifyAuthenticationStateChanged(
+            Task.FromResult(
+                new AuthenticationState(anonymous)));
+        try
+        {
+            _jsRuntime.InvokeVoidAsync("localStorage.removeItem", TokenStorageKey);
+        }
+        catch
+        {
+            // ignore
+        }
     }
+
+    public string? GetAccessToken()
+    {
+        return _accessToken;
+    }
+
     private static IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
     {
         var claims = new List<Claim>();
-        var payload = jwt.Split('.')[1];
+
+        var parts = jwt.Split('.');
+
+        if (parts.Length != 3)
+            return claims;
+
+        var payload = parts[1];
+
         var jsonBytes = ParseBase64WithoutPadding(payload);
-        var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
-        if (keyValuePairs != null)
+
+        var keyValuePairs =
+            JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                jsonBytes);
+
+        if (keyValuePairs == null)
+            return claims;
+
+        foreach (var pair in keyValuePairs)
         {
-            keyValuePairs.TryGetValue(ClaimTypes.Role, out var roles);
-            if (roles != null)
+            if (pair.Key == "role" || pair.Key == ClaimTypes.Role)
             {
-                if (roles.ToString()!.StartsWith("["))
+                if (pair.Value.ValueKind == JsonValueKind.Array)
                 {
-                    var parsedRoles = JsonSerializer.Deserialize<string[]>(roles.ToString()!);
-                    foreach (var parsedRole in parsedRoles!)
+                    foreach (var role in pair.Value.EnumerateArray())
                     {
-                        claims.Add(new Claim(ClaimTypes.Role, parsedRole));
+                        if (role.ValueKind == JsonValueKind.String)
+                        {
+                            claims.Add(
+                                new Claim(
+                                    ClaimTypes.Role,
+                                    role.GetString()!));
+                        }
                     }
                 }
-                else
+                else if (pair.Value.ValueKind == JsonValueKind.String)
                 {
-                    claims.Add(new Claim(ClaimTypes.Role, roles.ToString()!));
+                    claims.Add(
+                        new Claim(
+                            ClaimTypes.Role,
+                            pair.Value.GetString()!));
                 }
-                keyValuePairs.Remove(ClaimTypes.Role);
+
+                continue;
             }
-            claims.AddRange(keyValuePairs.Select(kvp => new Claim(kvp.Key, kvp.Value.ToString()!)));
+
+            if (pair.Value.ValueKind == JsonValueKind.String)
+            {
+                claims.Add(
+                    new Claim(
+                        pair.Key,
+                        pair.Value.GetString()!));
+            }
         }
+
         return claims;
     }
-        private static byte[] ParseBase64WithoutPadding(string base64)
+
+    private static byte[] ParseBase64WithoutPadding(string base64)
+    {
+        base64 = base64.Replace('-', '+')
+                       .Replace('_', '/');
+
+        switch (base64.Length % 4)
         {
-        switch(base64.Length % 4)
-        {
-            case 2: base64 += "=="; break;
-            case 3: base64 += "="; break;
+            case 2:
+                base64 += "==";
+                break;
+
+            case 3:
+                base64 += "=";
+                break;
         }
+
         return Convert.FromBase64String(base64);
     }
 }

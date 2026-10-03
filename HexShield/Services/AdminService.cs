@@ -1,4 +1,4 @@
-﻿using HexShield.Data;
+using HexShield.Data;
 using HexShield.Infrastructure.Tenancy;
 using HexShield.Models.DTOs.Admin;
 using HexShield.Models.Identity;
@@ -109,6 +109,10 @@ public class AdminService : IAdminService
         user.FullName = fullName;
         user.Email = dto.Email.Trim();
         user.UserName = dto.Email.Trim();
+        if (dto.RowVersion != null && dto.RowVersion.Length > 0)
+        {
+            _context.Entry(user).Property(u => u.RowVersion).OriginalValue = dto.RowVersion;
+        }
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded)
         {

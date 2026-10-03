@@ -1,0 +1,412 @@
+﻿@page "/admin/courses"
+@page "/teacher/courses"
+@layout AdminLayout
+@using HexShield.Models.DTOs.Courses
+@using System.ComponentModel.DataAnnotations
+@using System.Net.Http.Json
+@using System.Security.Claims
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin,Teacher")]
+<PageTitle>Course Management | Hex Shield</PageTitle>
+<div class="courses-container">
+    <div class="page-header">
+            <div>
+                <h2>Course Management</h2>
+                <p class="page-subtitle">Manage,edit and organize academic courses across organization nodes</p>
+            </div>
+        <button class="btn-primary" @onclick="OpenCreateDrawer">
+            <i class="fa-solid fa-plus"></i> Create Course
+        </button>
+    </div>
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert @(isErrorMessage ? "alert-danger" : "alert-success")">
+            <span>@statusMessage</span>
+            <button class="alert-close" @onclick="() => statusMessage = null">&times;</button>
+        </div>
+    }
+    <div class="toolbar">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" class="search-input" placeholder="Filter by course code or title..." @bind="searchTerm" @bind:event="oninput" />
+        </div>
+        <div class="filter-group">
+            <select class="filter-select" @bind="publishedFilter">
+                <option value="all">All Statuses</option>
+                <option value="published">Published Only</option>
+                <option value="draft">Drafts Only</option>
+            </select>
+        </div>
+    </div>
+    <div class="table-card">
+        @if (isLoading)
+        {
+            <div class="loading-state">
+                <i class="fa-solid fa-spinner fa-spin fa-spinner"></i>
+                <p>Loading Courses....</p>
+            </div>
+        }
+        else if (!FilteredCourses.Any())
+        {
+            <div class="empty-state">
+                <i class="fa-solid fa-folder-open empty-icon"></i>
+                    <h3>No Course Found</h3>
+                    <p>Please adjust your search or Create a new Course to get Started</p>
+                </div>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="data-table">
+                     <thead>
+                        <tr>
+                            <th>Course code</th>
+                            <th>Title</th>
+                            <th>Node Id</th>
+                            <th>Teacher Profile Id</th> 
+                            <th>Status</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach(var course in FilteredCourses)
+                        {
+                            <tr class="@(activeCourseId == course.Id ? "row-selected" : "")">
+                                <td class="font-mono text-bold">@course.CourseCode</td>
+                                <td>
+                                    <div class="course-title">@course.Title</div>
+                                    <div class="course-desc">@course.Description</div>
+                                </td>
+                                <td><span class="badge-neutral">Node #@course.OrganizationNodeId</span></td>
+                                <td><span class="badge-neutral">Teacher #@course.PrimaryTeacherProfileId</span></td>
+                                <td>
+                                <button class="status-toggle-btn @(course.IsPublished ? "Status-Published" : "Status-Draft")"
+                                      @onclick="() => TogglePublishStatus(course)">
+                                      @(course.IsPublished ? "Published" : "Draft")
+                              </button>
+                                </td>
+                                <td class="text-right">
+                                    <div class="action-buttons">
+                                        <button class="btn-icon" @onclick="() => OpenEditDrawer(course.Id)">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                    <button class="btn-icon btn-danger-icon" @onclick="() => ConfirmDelete(course.Id,course.CourseCode)">
+                                        <i class="fa-solid fa-trash"></i>
+                                </button> 
+                                 </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+@if (isDrawerOpen)
+{
+    <div class="drawer-overlay" @onclick="CloseDrawer">
+        <div class="drawer-panel">
+            <div class="drawer-header">
+                <h2>@(isEditMode ? $"Edit Course {activeCourseId}" : "Create Course")</h2>
+                <button class="drawer-close" @onclick="CloseDrawer">&times;</button>
+            </div>
+            <div class="drawer-body">
+                @if (isFormLoading)
+                {
+                    <div class="loading-state">
+                        <i class="fa-solid fa-spinner fa-spin spinner"></i>
+                        <p>Fetching Details</p>
+                    </div>
+                }
+                else
+                {
+                    <EditForm Model="@editorForm" OnValidSubmit="SaveCourse">
+                    <DataAnnotationsValidator />
+                        <div class="form-group">
+                            <label>Course Code *</label>
+                            <InputText class="form-control" @bind-Value="editorForm.CourseCode" placeholder="e.g. CS 101"/>
+                            <ValidationMessage For="@(() => editorForm.CourseCode)" />
+                        </div>
+                        <div class="form-group">
+                            <label>Course Title *</label>
+                            <InputText class="form-control" @bind-Value="editorForm.Title" placeholder="e.g. Introduction to Computer Science"/>
+                            <ValidationMessage For="@(() => editorForm.Title)" />
+                        </div>
+                        <div class="form-group">
+                            <label>Organization Node Id *</label>
+                            <InputNumber @bind-Value="editorForm.OrganizationNodeId" class="form-control" />
+                            <ValidationMessage For="@(() => editorForm.OrganizationNodeId)" />
+                    </div>
+                        <div class="form-group">
+                            <label>Primary Teacher Profile Id *</label>
+                            <InputNumber @bind-Value="editorForm.PrimaryTeacherProfileId" class="form-control" />
+                            <ValidationMessage For="@(() => editorForm.PrimaryTeacherProfileId)" />
+                        </div>
+                        <div class="form-group">
+                            <label>Course Description</label>
+                            <InputTextArea class="form-control" @bind-Value="editorForm.Description" placeholder="Optional course description..." />
+                            <ValidationMessage For="@(() => editorForm.Description)" />
+                        </div>
+                          <div class="drawer-footer">
+                              <button type="button" class="btn-secondary" @onclick="CloseDrawer" disabled="@isSaving">Cancel</button>
+                              <button type="submit" class="btn-primary" disabled="@isSaving">
+                                @(isSaving ? "Saving..." : (isEditMode ? "Update Course" : "Create Course"))
+                            </button>
+                        </div>
+                </EditForm>
+                }
+            </div>
+        </div>
+    </div>
+}
+@if (isDeleteModalOpen)
+{
+    <div class="modal-overlay">
+    <div class="modal-card">
+    <h3>Confirm Deletion</h3>
+    <p>Are you sure you want to delete course <strong>@DeleteCourseCode</strong>? This action is permanent and will cascade through associated records.</p>
+    <div class="modal-actions">
+    <button class="btn-secondary" @onclick="() => isDeleteModalOpen = false">Cancel</button>
+    <button class="btn-danger" @onclick="ExecuteDelete">Delete</button>
+</div>
+</div>
+</div>
+}
+@code{
+    private List<CourseListDto> courses = new List<CourseListDto>();
+    private string searchTerm = string.Empty;
+    private string publishedFilter = "all";
+    private string currentUserId = string.Empty;
+    private bool isLoading = true;
+    private bool isFormLoading = false;
+    private bool isSaving = false;
+    private bool isDrawerOpen = false;
+    private bool isEditMode = false;
+    private int? activeCourseId;
+    private CourseFormModel editorForm = new();
+    private bool isDeleteModalOpen = false;
+    private int deleteCourseId;
+    private string DeleteCourseCode = string.Empty;
+    private string? statusMessage;
+    private bool isErrorMessage = false;
+    private IEnumerable<CourseListDto> FilteredCourses => courses
+        .Where(c => string.IsNullOrWhiteSpace(searchTerm) || c.CourseCode.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+         c.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+        .Where(c => publishedFilter switch
+        {
+            "published" => c.IsPublished,
+            "draft" => !c.IsPublished,
+            _ => true
+        });
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        currentUserId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "system-user";
+        await LoadCourses();
+    }
+    private async Task LoadCourses()
+    {
+        isLoading = true;
+        try
+        {
+            var result = await Http.GetFromJsonAsync<IEnumerable<CourseListDto>>("api/admin/courses");
+            courses = result?.ToList() ?? new List<CourseListDto>();
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error loading courses: {ex.Message}";
+            isErrorMessage = true;
+        }
+        finally
+        {
+            isFormLoading = false;
+        }
+    }
+    private void OpenCreateDrawer()
+    {
+        isEditMode = false;
+        activeCourseId = null;
+        editorForm = new CourseFormModel();
+        isDrawerOpen = true;
+    }
+    private async Task OpenEditDrawer(int id)
+    {
+        isEditMode = true;
+        activeCourseId = id;
+        isDrawerOpen = true;
+        isFormLoading = true;
+        try
+        {
+            var details = await Http.GetFromJsonAsync<CourseDetailsDto>($"api/admin/courses/{id}");
+            if (details != null)
+            {
+                editorForm = new CourseFormModel
+                    {
+                        CourseCode = details.CourseCode,
+                        Title = details.Title,
+                        Description = details.Description,
+                        OrganizationNodeId = details.OrganizationNodeId,
+                        PrimaryTeacherProfileId = details.PrimaryTeacherProfileId
+                    };     
+            }
+            else
+            {
+                ShowStatus("Course record was not found.", true);
+                CloseDrawer();
+            }
+        }
+        catch(Exception ex)
+        {
+            ShowStatus($"Error loading course details: {ex.Message}", true);
+            CloseDrawer();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    private async Task SaveCourse()
+    {
+        isSaving = true;
+        try
+        {
+            if(isEditMode && activeCourseId.HasValue)
+            {
+                var updateDto = new UpdateCourseRequestDto
+                (
+                    editorForm.CourseCode,
+                    editorForm.Title,
+                    editorForm.Description,
+                    editorForm.PrimaryTeacherProfileId,
+                    editorForm.OrganizationNodeId
+                );
+                var putResp = await Http.PutAsJsonAsync($"api/admin/courses/{activeCourseId.Value}", updateDto);
+                putResp.EnsureSuccessStatusCode();
+                ShowStatus("Course updated successfully.");
+            }
+            else
+            {
+                var createDto = new CreateCourseRequestDto
+                (
+                    editorForm.CourseCode,
+                    editorForm.Title,
+                    editorForm.Description,
+                    editorForm.PrimaryTeacherProfileId,
+                    editorForm.OrganizationNodeId
+                );
+                var postResp = await Http.PostAsJsonAsync("api/admin/courses", createDto);
+                postResp.EnsureSuccessStatusCode();
+                ShowStatus("Course created successfully.");
+            }
+        }
+        catch(Exception ex)
+        {
+            ShowStatus(ex.Message,true);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+    private async Task TogglePublishStatus(CourseListDto course)
+    {
+        try
+        {
+            var publishDto = new PublishCourseRequestDto(!course.IsPublished);
+            var putResp = await Http.PutAsJsonAsync($"api/admin/courses/{course.Id}/publish", publishDto);
+            putResp.EnsureSuccessStatusCode();
+            var updated = await putResp.Content.ReadFromJsonAsync<CourseDetailsDto>();
+            var index = courses.FindIndex(c => c.Id == course.Id);
+            if (index != -1 && updated != null)
+            {
+                courses[index] = new CourseListDto(
+                   updated.Id,
+                   updated.CourseCode,
+                   updated.Title,
+                   updated.Description,
+                   updated.IsPublished,
+                   updated.PrimaryTeacherProfileId,
+                   updated.OrganizationNodeId
+                );
+            }
+            ShowStatus($"Course {updated?.CourseCode} status set to {(updated?.IsPublished == true ? "Published" : "Draft")}.");
+        }
+        catch(Exception ex)
+        {
+            ShowStatus($"Error toggling publish status: {ex.Message}",true);
+        }
+    }
+    private void ConfirmDelete(int id,string code)
+    {
+        deleteCourseId = id;
+        DeleteCourseCode = code;
+        isDeleteModalOpen = true;
+    }
+    private async Task ExecuteDelete()
+    {
+        try
+        {
+            var resp = await Http.DeleteAsync($"api/admin/courses/{deleteCourseId}");
+            if (resp.IsSuccessStatusCode)
+            {
+                ShowStatus($"Course {DeleteCourseCode} deleted successfully.");
+                await LoadCourses();
+            }
+            else if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                ShowStatus($"Course {DeleteCourseCode} not found.", true);
+            }
+            else if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                ShowStatus("Unauthorized. Please sign in.", true);
+                NavigationManager.NavigateTo("/login");
+            }
+            else
+            {
+                var txt = await resp.Content.ReadAsStringAsync();
+                ShowStatus($"Failed to delete course {DeleteCourseCode}. {txt}", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Delete failed: {ex.Message}", true);
+        }
+        finally
+        {
+            isDeleteModalOpen = false;
+        }
+    }
+    private void CloseDrawer()
+    {
+        isDrawerOpen = false;
+        isEditMode = false;
+        activeCourseId = null;
+    }
+    private void ShowStatus(string message, bool error = false)
+    {
+        statusMessage = message;
+        isErrorMessage = error;
+    }
+    private string TruncateText(string? text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text)) return "No description provided.";
+        return text.Length <= maxLength ? text : $"{text.Substring(0, maxLength)}...";
+    }
+    public class CourseFormModel
+    {
+        [Required(ErrorMessage = "Course code is required"), MaxLength(30)]
+        public string CourseCode { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Title is required"), MaxLength(30)]
+        public string Title { get; set; } = string.Empty;
+        [MaxLength(1000)]
+        public string? Description { get; set; }
+        [Range(1,int.MaxValue, ErrorMessage = "Please select a valid organization node.")]
+        public int OrganizationNodeId { get; set; }
+        [Range(1, int.MaxValue, ErrorMessage = "Please select a valid Teacher Profile Id.")]
+        public int PrimaryTeacherProfileId { get; set; }
+    }
+}

@@ -1,0 +1,109 @@
+﻿@inherits LayoutComponentBase
+
+<div class="admin-layout">
+
+    <aside class="admin-sidebar">
+
+        <div class="admin-brand">
+            <div class="admin-logo">H</div>
+
+            <div>
+                <strong>HexShield</strong>
+                <span>ADMIN</span>
+            </div>
+        </div>
+
+        <div class="admin-navigation">
+
+            <div class="nav-section-title">
+                OVERVIEW
+            </div>
+
+            <NavLink href="/admin"
+                     Match="NavLinkMatch.All"
+                     class="admin-nav-link">
+                <span>▦</span>
+                Dashboard
+            </NavLink>
+
+
+            <div class="nav-section-title">
+                MANAGEMENT
+            </div>
+
+            <NavLink href="/admin/users"
+                     class="admin-nav-link">
+                <span>♙</span>
+                Users
+            </NavLink>
+
+            <NavLink href="/admin/organizations"
+                     class="admin-nav-link">
+                <span>⌘</span>
+                Organizations
+            </NavLink>
+
+
+            <div class="nav-section-title">
+                SECURITY
+            </div>
+
+            <NavLink href="/admin/access-control"
+                     class="admin-nav-link">
+                <span>◈</span>
+                Access Control
+            </NavLink>
+
+        </div>
+
+        <div class="admin-sidebar-bottom">
+
+            <a href="/support" class="admin-bottom-link">
+                ◌ Support
+            </a>
+
+            <a href="/logout" class="admin-logout">
+                ↪ Logout
+            </a>
+
+        </div>
+
+    </aside>
+
+    <div class="admin-main">
+
+        <header class="admin-topbar">
+
+            <div class="admin-search">
+                <span>⌕</span>
+                <input placeholder="Search users, organizations..." />
+            </div>
+
+            <div class="admin-top-actions">
+
+                <button class="top-action">
+                    +
+                </button>
+
+                <button class="top-action">
+                    ♧
+                </button>
+
+                <div class="admin-profile">
+                    <div class="profile-avatar">
+                        A
+                    </div>
+
+                    <div>
+                        <strong>Administrator</strong>
+                        <span>Admin</span>
+                    </div>
+                </div>
+
+            </div>
+        </header>
+        <main class="admin-content">
+            @Body
+        </main>
+    </div>
+</div>

@@ -25,5 +25,13 @@
     <ProjectReference Include="..\HexShield.Client\HexShield.Client.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.12" />
   </ItemGroup>
-
+	<ItemGroup>
+		<!-- stop this file from being treated as a static web asset by the Server project -->
+		<Content Update="Components\Layout\ReconnectModal.razor.js">
+			<IsStaticWebAsset>false</IsStaticWebAsset>
+		</Content>
+		<!-- also remove if it was included as Content by wildcard -->
+		<Content Remove="Components\Layout\ReconnectModal.razor.js" />
+		<None  Remove="Components\Layout\ReconnectModal.razor.js" />
+	</ItemGroup>
 </Project>

@@ -1,0 +1,441 @@
+﻿@page "/admin/courses/{CourseId:int}/lessons"
+@page "/teacher/courses/lessons"
+@using System.Net.Http.Json
+@using System.ComponentModel.DataAnnotations
+@using HexShield.Client.Models.DTOs.Lesson
+@inject HttpClient Http
+@inject NavigationManager Navigation
+<PageTitle>Lesson Management - HexShield</PageTitle>
+<div class="lessons-container">
+    <div class="page-header">
+        <div>
+            <div class="breadcrumb">
+                <a href="/admin/courses"><i class="fa-solid fa-arrow-left"></i> Back to Courses</a>
+            </div>
+            <h1 class="page-title">Course #@CourseId - Lessons</h1>
+            <p class="page-subtitle">Manage curriculum sequence, lesson content, and media via REST API.</p>
+        </div>
+        <button class="btn-primary" @onclick="OpenCreateDrawer">
+            <i class="fa-solid fa-plus"></i> Add Lesson
+        </button>
+    </div>
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success")">
+            <span>@statusMessage</span>
+            <button class="alert-close" @onclick="() => statusMessage = null">&times;</button>
+        </div>
+    }
+    <div class="toolbar">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" class="search-input" placeholder="Search lessons by title..." @bind="searchTerm" @bind:event="oninput" />
+        </div>
+    </div>
+    <div class="table-card">
+        @if (isLoading)
+        {
+            <div class="loading-state">
+                <i class="fa-solid fa-spinner fa-spin spinner"></i>
+                <p>Fetching lessons from API...</p>
+            </div>
+        }
+        else if (!FilteredLessons.Any())
+        {
+            <div class="empty-state">
+                <i class="fa-solid fa-book-open empty-icon"></i>
+                <h3>No lessons created yet</h3>
+                <p>Add your first lesson to start building the curriculum for this course.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">Order</th>
+                            <th>Lesson Title</th>
+                            <th>Media</th>
+                            <th>Status</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var lesson in FilteredLessons)
+                        {
+                            <tr class="@(activeLessonId == lesson.Id ? "row-selected" : "")">
+                                <td class="font-mono text-bold text-center">
+                                    <div class="order-controls">
+                                        <button class="btn-order" @onclick="() => MoveOrder(lesson, -1)" title="Move Up"><i class="fa-solid fa-chevron-up"></i></button>
+                                        <span>#@lesson.sortOrder</span>
+                                        <button class="btn-order" @onclick="() => MoveOrder(lesson, 1)" title="Move Down"><i class="fa-solid fa-chevron-down"></i></button>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="lesson-title">@lesson.Title</div>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(lesson.VideoUrl))
+                                    {
+                                        <span class="badge-media"><i class="fa-solid fa-video"></i> Video</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge-neutral">Text Only</span>
+                                    }
+                                </td>
+                                <td>
+                                    <button class="status-toggle-btn @(lesson.isPublished ? "status-published" : "status-draft")"
+                                            @onclick="() => TogglePublishStatus(lesson)">
+                                        @(lesson.isPublished ? "Published" : "Draft")
+                                    </button>
+                                </td>
+                                <td class="text-right">
+                                    <div class="action-buttons">
+                                        <button class="btn-icon" title="Edit Lesson" @onclick="() => OpenEditDrawer(lesson.Id)">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </button>
+                                        <button class="btn-icon btn-danger-icon" title="Delete Lesson" @onclick="() => ConfirmDelete(lesson.Id, lesson.Title)">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+@if (isDrawerOpen)
+{
+    <div class="drawer-overlay" @onclick="CloseDrawer"></div>
+    <div class="drawer-panel">
+        <div class="drawer-header">
+            <h2>@(isEditMode ? $"Edit Lesson #{activeLessonId}" : "Add New Lesson")</h2>
+            <button class="drawer-close" @onclick="CloseDrawer">&times;</button>
+        </div>
+        <div class="drawer-body">
+            @if (isFormLoading)
+            {
+                <div class="loading-state">
+                    <i class="fa-solid fa-spinner fa-spin spinner"></i>
+                    <p>Loading lesson details...</p>
+                </div>
+            }
+            else
+            {
+                <EditForm Model="@editorForm" OnValidSubmit="SaveLesson">
+                    <DataAnnotationsValidator />
+                    <div class="form-group">
+                        <label>Lesson Title *</label>
+                        <InputText @bind-Value="editorForm.Title" class="form-control" placeholder="e.g. Lesson 1: Introduction" />
+                        <ValidationMessage For="@(() => editorForm.Title)" />
+                    </div>
+                    <div class="form-group">
+                        <label>Sort Order Index *</label>
+                        <InputNumber @bind-Value="editorForm.SortOrder" class="form-control" />
+                        <ValidationMessage For="@(() => editorForm.SortOrder)" />
+                    </div>
+                    <div class="form-group">
+                        <label>Video Stream URL</label>
+                        <InputText @bind-Value="editorForm.VideoUrl" class="form-control" placeholder="https://vimeo.com/... or video stream link" />
+                        <ValidationMessage For="@(() => editorForm.VideoUrl)" />
+                    </div>
+                    <div class="form-group">
+                        <label>Content / Syllabus Body</label>
+                        <InputTextArea @bind-Value="editorForm.Content" class="form-control textarea" rows="8" placeholder="Detailed content text..." />
+                        <ValidationMessage For="@(() => editorForm.Content)" />
+                    </div>
+                    <div class="drawer-footer">
+                        <button type="button" class="btn-secondary" @onclick="CloseDrawer" disabled="@isSaving">Cancel</button>
+                        <button type="submit" class="btn-primary" disabled="@isSaving">
+                            @(isSaving ? "Saving..." : (isEditMode ? "Update Lesson" : "Create Lesson"))
+                        </button>
+                    </div>
+                </EditForm>
+            }
+        </div>
+    </div>
+}
+@if (isDeleteModalOpen)
+{
+    <div class="modal-overlay">
+        <div class="modal-card">
+            <h3>Confirm Deletion</h3>
+            <p>Are you sure you want to delete lesson <strong>@deleteLessonTitle</strong>?</p>
+            <div class="modal-actions">
+                <button class="btn-secondary" @onclick="() => isDeleteModalOpen = false">Cancel</button>
+                <button class="btn-danger" @onclick="ExecuteDelete">Delete Lesson</button>
+            </div>
+        </div>
+    </div>
+}
+@code {
+    [Parameter] public int CourseId { get; set; }
+    private List<LessonListDto> lessons = new();
+    private string searchTerm = string.Empty;
+    private bool isLoading = true;
+    private bool isFormLoading = false;
+    private bool isSaving = false;
+    private bool isDrawerOpen = false;
+    private bool isEditMode = false;
+    private int? activeLessonId;
+    private LessonFormModel editorForm = new();
+    private bool isDeleteModalOpen = false;
+    private int deleteLessonId;
+    private string deleteLessonTitle = string.Empty;
+    private string? statusMessage;
+    private bool isError = false;
+    private IEnumerable<LessonListDto> FilteredLessons => lessons
+        .Where(l => string.IsNullOrWhiteSpace(searchTerm) || l.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(l => l.sortOrder);
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLessons();
+    }
+    private async Task LoadLessons()
+    {
+        isLoading = true;
+        try
+        {
+            var response = await Http.GetFromJsonAsync<List<LessonListDto>>($"api/lessons/course/{CourseId}");
+            lessons = response ?? new List<LessonListDto>();
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Failed to load lessons from API: {ex.Message}", true);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    private void OpenCreateDrawer()
+    {
+        isEditMode = false;
+        activeLessonId = null;
+        editorForm = new LessonFormModel
+        {
+            SortOrder = lessons.Any() ? lessons.Max(l => l.sortOrder) + 1 : 1
+        };
+        isDrawerOpen = true;
+    }
+    private async Task OpenEditDrawer(int id)
+    {
+        isEditMode = true;
+        activeLessonId = id;
+        isDrawerOpen = true;
+        isFormLoading = true;
+        try
+        {
+            var details = await Http.GetFromJsonAsync<LessonDetailDto>($"api/lessons/{id}");
+            if (details != null)
+            {
+                editorForm = new LessonFormModel
+                {
+                    Title = details.Title,
+                    Content = details.Content,
+                    VideoUrl = details.VideoUrl,
+                    SortOrder = details.SortOrder
+                };
+            }
+            else
+            {
+                ShowStatus("Lesson details not found.", true);
+                CloseDrawer();
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Error fetching lesson details: {ex.Message}", true);
+            CloseDrawer();
+        }
+        finally
+        {
+            isFormLoading = false;
+        }
+    }
+
+    private async Task SaveLesson()
+    {
+        isSaving = true;
+        try
+        {
+            if (isEditMode && activeLessonId.HasValue)
+            {
+                var updateDto = new UpdateLessonRequestDto(
+                    editorForm.Title,
+                    editorForm.Content,
+                    editorForm.VideoUrl,
+                    editorForm.SortOrder
+                );
+
+                var response = await Http.PutAsJsonAsync($"api/lessons/{activeLessonId.Value}", updateDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    ShowStatus("Lesson updated successfully.");
+                }
+                else
+                {
+                    ShowStatus($"API Error: {response.StatusCode}", true);
+                }
+            }
+            else
+            {
+                var createDto = new CreateLessonRequestDto(
+                    CourseId,
+                    editorForm.Title,
+                    editorForm.Content,
+                    editorForm.VideoUrl,
+                    editorForm.SortOrder
+                );
+
+                var response = await Http.PostAsJsonAsync("api/lessons", createDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    ShowStatus("Lesson created successfully.");
+                }
+                else
+                {
+                    ShowStatus($"API Error: {response.StatusCode}", true);
+                }
+            }
+            CloseDrawer();
+            await LoadLessons();
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"HTTP request failed: {ex.Message}", true);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+    private async Task TogglePublishStatus(LessonListDto lesson)
+    {
+        try
+        {
+            var response = await Http.PatchAsJsonAsync($"api/lessons/{lesson.Id}/publish", !lesson.isPublished);
+            if (response.IsSuccessStatusCode)
+            {
+                var updated = await response.Content.ReadFromJsonAsync<LessonDetailDto>();
+                if (updated != null)
+                {
+                    var index = lessons.FindIndex(l => l.Id == lesson.Id);
+                    if (index != -1)
+                    {
+                        lessons[index] = new LessonListDto(
+                            updated.id,
+                            updated.CourseId,
+                            updated.Title,
+                            updated.VideoUrl,
+                            updated.SortOrder,
+                            updated.IsPublished
+                        );
+                    }
+                    ShowStatus($"Lesson status set to {(updated.IsPublished ? "Published" : "Draft")}.");
+                }
+            }
+            else
+            {
+                ShowStatus("Failed to toggle publish status.", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Status update error: {ex.Message}", true);
+        }
+    }
+    private async Task MoveOrder(LessonListDto lesson, int delta)
+    {
+        var currentIndex = lessons.FindIndex(l => l.Id == lesson.Id);
+        var targetIndex = currentIndex + delta;
+
+        if (targetIndex < 0 || targetIndex >= lessons.Count) return;
+
+        var otherLesson = lessons[targetIndex];
+
+        var reorders = new List<ReorderLessonDto>
+        {
+            new(lesson.Id, otherLesson.sortOrder),
+            new(otherLesson.Id, lesson.sortOrder)
+        };
+        try
+        {
+            var response = await Http.PostAsJsonAsync($"api/lessons/course/{CourseId}/reorder", reorders);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadLessons();
+            }
+            else
+            {
+                ShowStatus("Failed to reorder lessons.", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Reorder request failed: {ex.Message}", true);
+        }
+    }
+
+    private void ConfirmDelete(int id, string title)
+    {
+        deleteLessonId = id;
+        deleteLessonTitle = title;
+        isDeleteModalOpen = true;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/lessons/{deleteLessonId}");
+            if (response.IsSuccessStatusCode)
+            {
+                ShowStatus("Lesson deleted successfully.");
+                await LoadLessons();
+            }
+            else
+            {
+                ShowStatus("Delete request failed.", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Delete error: {ex.Message}", true);
+        }
+        finally
+        {
+            isDeleteModalOpen = false;
+        }
+    }
+
+    private void CloseDrawer()
+    {
+        isDrawerOpen = false;
+        isEditMode = false;
+        activeLessonId = null;
+    }
+
+    private void ShowStatus(string message, bool error = false)
+    {
+        statusMessage = message;
+        isError = error;
+    }
+    public class LessonFormModel
+    {
+        [Required(ErrorMessage = "Lesson title is required.")]
+        [StringLength(100)]
+        public string Title { get; set; } = string.Empty;
+        [StringLength(4000)]
+        public string? Content { get; set; }
+        [StringLength(500)]
+        public string? VideoUrl { get; set; }
+        [Range(0, 1000)]
+        public int SortOrder { get; set; }
+    }
+}

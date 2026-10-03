@@ -1,19 +1,22 @@
-//using HexShield.Client.Pages;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Options;
-using HexShield.Infrastructure.Authorization;
+using HexShield.Client.Pages;
+using HexShield.Client.Services;
 using HexShield.Components;
 using HexShield.Data;
 using HexShield.Infrastructure;
+using HexShield.Infrastructure.Authorization;
+using HexShield.Infrastructure.Middleware;
 using HexShield.Infrastructure.Tenancy;
 using HexShield.Models.Identity;
 using HexShield.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IO.Compression;
 using System.Text;
@@ -82,7 +85,20 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy("TeacherOnly", policy => policy.RequireRole("Teacher"))
     .AddPolicy("StudentOnly", policy => policy.RequireRole("Student"))
     .AddPolicy("AdminOrTeacher", policy => policy.RequireRole("Admin", "Teacher"));
-
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped(sp =>
+{
+    var httpContext = sp.GetRequiredService<IHttpContextAccessor>().HttpContext;
+    var baseAddress = httpContext != null
+        ? $"{httpContext.Request.Scheme}://{httpContext.Request.Host}/"
+        : "https://localhost:7263/";
+    return new HttpClient { BaseAddress = new Uri(baseAddress) };
+});
+builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
+builder.Services.AddScoped<HexShield.Client.Services.CustomAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<HexShield.Client.Services.CustomAuthenticationStateProvider>());
+builder.Services.AddScoped<ILessonService, LessonService>();
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 builder.Services.AddProblemDetails();
@@ -126,6 +142,9 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IOrganizationService, OrganizationService>();
+builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddRazorComponents().AddInteractiveServerComponents().AddInteractiveWebAssemblyComponents();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddAntiforgery();
@@ -139,11 +158,8 @@ if (!builder.Environment.IsDevelopment())
     });
 }
 var app = builder.Build();
-using (var scope = app.Services.CreateScope())
-{
-    await DbSeeder.SeedAdminAsync(scope.ServiceProvider);
-}
 app.UseExceptionHandler();
+app.UseMiddleware<ConcurrencyExceptionMiddleware>();
 if (app.Environment.IsDevelopment())
 {
     app.UseWebAssemblyDebugging();
@@ -158,6 +174,14 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseResponseCompression();
 }
+
+// Serve Blazor WebAssembly static files and regular static files so _framework modules
+// (dotnet.*) are served with the correct MIME types. This is required for interactive
+// WebAssembly render mode to load client-side runtime assets.
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+
+// Preserve any existing custom static asset mapping
 app.MapStaticAssets();
 app.UseRouting();
 app.UseRateLimiter();

@@ -17,4 +17,5 @@ public class Lesson : BaseEntity
     public int SortOrder { get; set; }
     public bool IsPublished { get; set; }
     public ICollection<LessonProgress> LessonProgress { get; set; } = new List<LessonProgress>();
+    public int TenantId { get; internal set; }
 }

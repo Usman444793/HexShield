@@ -1,0 +1,107 @@
+@page "/login"
+@rendermode InteractiveAuto
+@layout PublicLayout
+@inject HttpClient Http
+@inject CustomAuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Sign In | Hex Shield</PageTitle>
+
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-logo">H</div>
+            <h1>Welcome back</h1>
+            <p>Sign in to your Hex Shield Workspace</p>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="auth-error">
+                @errorMessage
+            </div>
+        }
+            <EditForm Model="@loginRequest" OnValidSubmit="@LoginAsync" FormName="login-form">
+            <DataAnnotationsValidator />
+            <div class="form-group">
+                <label>Email</label>
+                <InputText @bind-Value="loginRequest.Email" class="form-control" autocomplete="email" />
+                <ValidationMessage For="@(() => loginRequest.Email)" />
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <InputText @bind-Value="loginRequest.Password" class="form-control" type="password" autocomplete="current-password" />
+                <ValidationMessage For="@(() => loginRequest.Password)" />
+            </div>
+            <button type="submit" class="auth-submit" disabled="@isLoading">
+                @(isLoading ? "Signing In..." : "Sign In")
+            </button>
+        </EditForm>
+
+        <div class="auth-footer">
+            Don't have an account? 
+            <a href="/register">Create One</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginRequestDto loginRequest = new("", "");
+    private bool isLoading;
+    private string? errorMessage;
+
+    private async Task LoginAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            await JS.InvokeVoidAsync("console.log", "LoginAsync started", loginRequest.Email);
+
+            var response = await Http.PostAsJsonAsync("api/auth/login", loginRequest);
+            await JS.InvokeVoidAsync("console.log", "Login response status", response.StatusCode.ToString());
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var serverText = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Invalid Email or Password. {serverText}";
+                await JS.InvokeVoidAsync("console.warn", "Login failed", serverText);
+                return;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
+            if (result == null || string.IsNullOrWhiteSpace(result.AccessToken))
+            {
+                errorMessage = "Authentication response was invalid.";
+                await JS.InvokeVoidAsync("console.error", "Auth response invalid", result);
+                return;
+            }
+
+            AuthState.MarkUserAsAuthenticated(result.AccessToken);
+
+            if (result.Roles?.Any(r => string.Equals(r, "Admin", StringComparison.OrdinalIgnoreCase)) == true)
+            {
+                Navigation.NavigateTo("/admin");
+            }
+            else if (result.Roles?.Any(r => string.Equals(r, "Teacher", StringComparison.OrdinalIgnoreCase)) == true)
+            {
+                Navigation.NavigateTo("/teacher");
+            }
+            else
+            {
+                Navigation.NavigateTo("/student");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to connect to the authentication service. {ex.Message}";
+            try { await JS.InvokeVoidAsync("console.error", ex.ToString()); } catch { }
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

@@ -1,0 +1,234 @@
+.admin-layout {
+    min-height: 100vh;
+    display: flex;
+    background: #f5f8fb;
+    color: #0f172a;
+}
+
+.admin-sidebar {
+    width: 245px;
+    min-height: 100vh;
+    background: #102b40;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.admin-brand {
+    height: 78px;
+    padding: 0 22px;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.admin-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    background: #14b8a6;
+    color: white;
+    font-weight: 900;
+}
+
+.admin-brand strong {
+    display: block;
+    font-size: 16px;
+}
+
+.admin-brand span {
+    display: block;
+    color: #5eead4;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    margin-top: 2px;
+}
+
+.admin-navigation {
+    padding: 25px 12px;
+}
+
+.nav-section-title {
+    color: #647f93;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1.3px;
+    margin: 15px 12px 8px;
+}
+
+.admin-nav-link {
+    height: 43px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 13px;
+    border-radius: 8px;
+    color: #b8c8d5;
+    text-decoration: none;
+    font-size: 13px;
+    margin-bottom: 3px;
+}
+
+    .admin-nav-link span {
+        width: 18px;
+        text-align: center;
+    }
+
+    .admin-nav-link:hover {
+        background: rgba(20,184,166,.12);
+        color: white;
+    }
+
+    .admin-nav-link.active {
+        background: #0f6870;
+        color: white;
+    }
+
+.admin-sidebar-bottom {
+    margin-top: auto;
+    padding: 15px 12px 20px;
+    border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.admin-bottom-link,
+.admin-logout {
+    display: block;
+    padding: 10px 13px;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.admin-bottom-link {
+    color: #9fb2c1;
+}
+
+.admin-logout {
+    color: #f87171;
+}
+
+.admin-main {
+    margin-left: 245px;
+    width: calc(100% - 245px);
+    min-height: 100vh;
+}
+
+.admin-topbar {
+    height: 72px;
+    padding: 0 28px;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.admin-search {
+    width: 330px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    color: #64748b;
+}
+
+    .admin-search input {
+        border: none;
+        outline: none;
+        background: transparent;
+        width: 100%;
+        font-size: 12px;
+    }
+
+.admin-top-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.top-action {
+    width: 35px;
+    height: 35px;
+    border: 1px solid #e2e8f0;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.admin-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: 8px;
+}
+
+.profile-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #ccfbf1;
+    color: #0f766e;
+    font-weight: 800;
+}
+
+.admin-profile strong,
+.admin-profile span {
+    display: block;
+}
+
+.admin-profile strong {
+    font-size: 12px;
+}
+
+.admin-profile span {
+    color: #64748b;
+    font-size: 10px;
+    margin-top: 2px;
+}
+
+.admin-content {
+    padding: 30px;
+}
+
+@media(max-width: 850px) {
+    .admin-sidebar {
+        width: 70px;
+    }
+
+    .admin-brand {
+        justify-content: center;
+        padding: 0;
+    }
+
+        .admin-brand div:last-child,
+        .nav-section-title,
+        .admin-nav-link:not(.active) {
+            font-size: 0;
+        }
+
+        .admin-brand strong,
+        .admin-brand span {
+            display: none;
+        }
+
+    .admin-nav-link {
+        justify-content: center;
+    }
+
+    .admin-main {
+        margin-left: 70px;
+        width: calc(100% - 70px);
+    }
+}

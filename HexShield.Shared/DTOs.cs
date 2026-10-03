@@ -1,4 +1,5 @@
-namespace HexShield.Models.DTOs;
+namespace HexShield.Shared.DTOs;
+
 public record AuthResponseDto(
     string AccessToken,
     string RefreshToken,
@@ -8,10 +9,12 @@ public record AuthResponseDto(
     IEnumerable<string> Roles,
     int TenantId = 0
 );
+
 public record LoginRequestDto(
     string Email,
     string Password
 );
+
 public record RegisterRequestDto(
     string FirstName,
     string LastName,
@@ -20,10 +23,12 @@ public record RegisterRequestDto(
     int? TenantId = null,
     string? Department = null
 );
+
 public record RefreshTokenRequestDto(
     string AccessToken,
     string RefreshToken
 );
+
 public record RevokeTokenRequestDto(
     string? RefreshToken = null
 );
