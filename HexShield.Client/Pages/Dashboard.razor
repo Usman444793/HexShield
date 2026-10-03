@@ -1,7 +1,5 @@
 @page "/admin"
-@rendermode InteractiveAuto
-@using Microsoft.AspNetCore.Authorization
-@*attribute [Authorize(Policy = "AdminOnly")]*@
+@attribute [Authorize(Policy = "AdminOnly")]
 @layout HexShield.Client.Components.Layout.AdminLayout
 
 <PageTitle>Admin Command Center</PageTitle>

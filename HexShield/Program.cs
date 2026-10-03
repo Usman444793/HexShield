@@ -90,12 +90,13 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped(sp =>
 {
     var httpContext = sp.GetRequiredService<IHttpContextAccessor>().HttpContext;
-    var baseAddress = httpContext != null
-        ? $"{httpContext.Request.Scheme}://{httpContext.Request.Host}/"
-        : "https://localhost:7263/";
-    return new HttpClient { BaseAddress = new Uri(baseAddress) };
+    if (httpContext != null)
+    {
+        return new HttpClient { BaseAddress = new Uri($"{httpContext.Request.Scheme}://{httpContext.Request.Host}/") };
+    }
+    // Fallback to a reasonable default if no context is available
+    return new HttpClient { BaseAddress = new Uri("http://localhost:5282/") };
 });
-builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
 builder.Services.AddScoped<HexShield.Client.Services.CustomAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<HexShield.Client.Services.CustomAuthenticationStateProvider>());
 builder.Services.AddScoped<ILessonService, LessonService>();
@@ -180,18 +181,43 @@ if (!app.Environment.IsDevelopment())
 // WebAssembly render mode to load client-side runtime assets.
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
+// Preserve any existing custom static asset mapping. Only map when manifest exists.
+// MapStaticAssets requires a generated manifest file. Skip the unconditional
+// call here and map only when the manifest is present to avoid startup errors
+// when Static Web Assets are not generated (e.g., during development builds
+// where we disabled StaticWebAssets or haven't published the client).
+var staticAssetsManifestPath = Path.Combine(AppContext.BaseDirectory, "HexShield.staticwebassets.endpoints.json");
 
-// Preserve any existing custom static asset mapping
-app.MapStaticAssets();
+// Routing must be registered before authentication/authorization and endpoint mapping
 app.UseRouting();
+
+// Cross-cutting middleware
 app.UseRateLimiter();
 app.UseOutputCache();
-app.UseAuthentication();
+
+// Tenant resolution should run before authentication so auth handlers can consider tenant context
 app.UseMiddleware<TenantResolverMiddleware>();
+
+// Authentication & Authorization must be between UseRouting and UseEndpoints
+app.UseAuthentication();
 app.UseAuthorization();
+
 app.UseAntiforgery();
+
+// Use top-level route registrations instead of UseEndpoints to satisfy analyzers
+if (File.Exists(staticAssetsManifestPath))
+{
+    app.MapStaticAssets(staticAssetsManifestPath);
+}
+else
+{
+    var logger = app.Services.GetService<ILogger<Program>>();
+    logger?.LogWarning("Static web assets manifest not found, skipping MapStaticAssets: {Path}", staticAssetsManifestPath);
+}
+
 app.MapControllers().RequireRateLimiting("ApiPolicy");
+
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode().AddInteractiveWebAssemblyRenderMode()
-.AddAdditionalAssemblies(typeof(HexShield.Client._Imports).Assembly);
+    .AddAdditionalAssemblies(typeof(HexShield.Client._Imports).Assembly);
 await DbInitializer.InitializeAsync(app.Services);
 app.Run();

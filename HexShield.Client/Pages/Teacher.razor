@@ -1,0 +1,23 @@
+@page "/teacher"
+@attribute [Authorize(Policy = "TeacherOnly")]
+@layout HexShield.Client.Components.Layout.AdminLayout
+
+<PageTitle>Teacher Workspace</PageTitle>
+
+<div class="admin-dashboard">
+    <div class="page-heading">
+        <div>
+            <span class="eyebrow">HEXSHIELD INSTRUCTION</span>
+            <h1>Teacher Workspace</h1>
+            <p>Manage courses, lessons, and published curriculum for your organization.</p>
+        </div>
+    </div>
+    <div class="admin-cards">
+        <div class="admin-card">
+            <span class="card-label">COURSES</span>
+            <h2>My Courses</h2>
+            <p>Create, update, and publish courses assigned to you.</p>
+            <a href="/teacher/courses">Manage Courses →</a>
+        </div>
+    </div>
+</div>

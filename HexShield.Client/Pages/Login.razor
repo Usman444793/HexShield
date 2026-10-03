@@ -1,10 +1,14 @@
 @page "/login"
-@rendermode InteractiveAuto
 @layout PublicLayout
+@attribute [AllowAnonymous]
+
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components.Forms
+@using HexShield.Client.Services
+
 @inject HttpClient Http
 @inject CustomAuthenticationStateProvider AuthState
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
 
 <PageTitle>Sign In | Hex Shield</PageTitle>
 
@@ -22,34 +26,53 @@
                 @errorMessage
             </div>
         }
-            <EditForm Model="@loginRequest" OnValidSubmit="@LoginAsync" FormName="login-form">
+
+        <EditForm Model="@loginRequest" OnValidSubmit="LoginAsync" OnInvalidSubmit="HandleInvalidSubmit" Enhance="false">
             <DataAnnotationsValidator />
-            <div class="form-group">
-                <label>Email</label>
-                <InputText @bind-Value="loginRequest.Email" class="form-control" autocomplete="email" />
-                <ValidationMessage For="@(() => loginRequest.Email)" />
+            <ValidationSummary />
+
+            <div class="auth-form">
+                <div class="form-group">
+                    <label>Email</label>
+                    <InputText @bind-Value="loginRequest.Email"
+                               class="form-control"
+                               type="email"
+                               autocomplete="username" />
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <InputText @bind-Value="loginRequest.Password"
+                               class="form-control"
+                               type="password"
+                               autocomplete="current-password" />
+                </div>
+
+                <button type="submit" class="auth-submit" disabled="@isLoading">
+                    @(isLoading ? "Signing In..." : "Sign In")
+                </button>
             </div>
-            <div class="form-group">
-                <label>Password</label>
-                <InputText @bind-Value="loginRequest.Password" class="form-control" type="password" autocomplete="current-password" />
-                <ValidationMessage For="@(() => loginRequest.Password)" />
-            </div>
-            <button type="submit" class="auth-submit" disabled="@isLoading">
-                @(isLoading ? "Signing In..." : "Sign In")
-            </button>
         </EditForm>
 
         <div class="auth-footer">
-            Don't have an account? 
+            Don't have an account?
             <a href="/register">Create One</a>
         </div>
     </div>
 </div>
 
 @code {
-    private LoginRequestDto loginRequest = new("", "");
+    private LoginRequestDto loginRequest = new();
     private bool isLoading;
     private string? errorMessage;
+
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    private void HandleInvalidSubmit()
+    {
+        errorMessage = "Please enter a valid email and password.";
+    }
 
     private async Task LoginAsync()
     {
@@ -58,50 +81,69 @@
 
         try
         {
-            await JS.InvokeVoidAsync("console.log", "LoginAsync started", loginRequest.Email);
-
             var response = await Http.PostAsJsonAsync("api/auth/login", loginRequest);
-            await JS.InvokeVoidAsync("console.log", "Login response status", response.StatusCode.ToString());
 
             if (!response.IsSuccessStatusCode)
             {
                 var serverText = await response.Content.ReadAsStringAsync();
-                errorMessage = $"Invalid Email or Password. {serverText}";
-                await JS.InvokeVoidAsync("console.warn", "Login failed", serverText);
+                errorMessage = string.IsNullOrWhiteSpace(serverText)
+                    ? $"Login failed ({(int)response.StatusCode})."
+                    : $"Login failed ({(int)response.StatusCode}): {serverText}";
                 return;
             }
 
             var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
-            if (result == null || string.IsNullOrWhiteSpace(result.AccessToken))
+            if (result is null || string.IsNullOrWhiteSpace(result.AccessToken))
             {
-                errorMessage = "Authentication response was invalid.";
-                await JS.InvokeVoidAsync("console.error", "Auth response invalid", result);
+                errorMessage = "Authentication response did not contain an access token.";
                 return;
             }
 
-            AuthState.MarkUserAsAuthenticated(result.AccessToken);
-
-            if (result.Roles?.Any(r => string.Equals(r, "Admin", StringComparison.OrdinalIgnoreCase)) == true)
-            {
-                Navigation.NavigateTo("/admin");
-            }
-            else if (result.Roles?.Any(r => string.Equals(r, "Teacher", StringComparison.OrdinalIgnoreCase)) == true)
-            {
-                Navigation.NavigateTo("/teacher");
-            }
-            else
-            {
-                Navigation.NavigateTo("/student");
-            }
+            await AuthState.MarkUserAsAuthenticated(result.AccessToken);
+            Navigation.NavigateTo(GetLandingPath(result.Roles), forceLoad: false);
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = $"Could not connect to HexShield API: {ex.Message}";
         }
         catch (Exception ex)
         {
-            errorMessage = $"Unable to connect to the authentication service. {ex.Message}";
-            try { await JS.InvokeVoidAsync("console.error", ex.ToString()); } catch { }
+            errorMessage = $"Login error: {ex.Message}";
         }
         finally
         {
             isLoading = false;
         }
+    }
+
+    private string GetLandingPath(IEnumerable<string>? roles)
+    {
+        if (IsSafeReturnUrl(ReturnUrl))
+        {
+            return ReturnUrl!;
+        }
+
+        var roleList = roles ?? Enumerable.Empty<string>();
+
+        if (roleList.Any(r => string.Equals(r, "Admin", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "/admin";
+        }
+
+        if (roleList.Any(r => string.Equals(r, "Teacher", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "/teacher";
+        }
+
+        return "/student";
+    }
+
+    private static bool IsSafeReturnUrl(string? returnUrl)
+    {
+        return !string.IsNullOrWhiteSpace(returnUrl)
+            && returnUrl.StartsWith('/')
+            && !returnUrl.StartsWith("//")
+            && !returnUrl.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
+            && !returnUrl.StartsWith("/register", StringComparison.OrdinalIgnoreCase);
     }
 }

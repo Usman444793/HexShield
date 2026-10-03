@@ -1,8 +1,7 @@
 ﻿@page "/admin/users"
-@rendermode InteractiveAuto
+@attribute [Authorize(Policy = "AdminOnly")]
+@layout HexShield.Client.Components.Layout.AdminLayout
 @using HexShield.Models.DTOs.Admin
-@using Microsoft.AspNetCore.Authorization
-@*attribute [Authorize(Policy = "AdminOnly")]*@
 @inject HttpClient Http
 
 <PageTitle>Manage Users</PageTitle>
@@ -54,28 +53,18 @@
 </div>
 
 @code {
-    private List<UserDto>? users;
+    private List<UserListDto>? users;
 
     protected override async Task OnInitializedAsync()
     {
-        try 
+        try
         {
             // This calls the API we already built!
-            users = await Http.GetFromJsonAsync<List<UserDto>>("api/AdminUser");
+            users = await Http.GetFromJsonAsync<List<UserListDto>>("api/admin/users");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading users: {ex.Message}");
         }
-    }
-
-    // Simple DTO for the table
-    public class UserDto {
-        public string Id { get; set; } = "";
-        public string Email { get; set; } = "";
-        public string FullName { get; set; } = "";
-        public bool IsActive { get; set; }
-        public int TenantId { get; set; }
-        public DateTimeOffset CreatedAt { get; set; }
     }
 }

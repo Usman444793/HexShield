@@ -1,0 +1,23 @@
+@page "/logout"
+@inject CustomAuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
+@layout PublicLayout
+
+<PageTitle>Signing out | HexShield</PageTitle>
+
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1>Signing out</h1>
+            <p>Clearing your HexShield session.</p>
+        </div>
+    </div>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.MarkUserAsLoggedOut();
+        Navigation.NavigateTo("/login");
+    }
+}

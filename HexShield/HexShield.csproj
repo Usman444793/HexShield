@@ -25,6 +25,63 @@
     <ProjectReference Include="..\HexShield.Client\HexShield.Client.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.12" />
   </ItemGroup>
+
+  <!-- Exclude any accidentally nested client wwwroot files from being treated as static web assets by the server project -->
+  <ItemGroup>
+    <Content Remove="wwwroot\wwwroot\**\*.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Prevent server appsettings files (and compressed variants) from participating in Static Web Assets
+         — exclude both plain and environment-specific appsettings to avoid collisions with client assets. -->
+    <Content Remove="wwwroot\appsettings.json" />
+    <Content Remove="wwwroot\appsettings.*.json" />
+    <Content Remove="wwwroot\appsettings.json.*" />
+    <Content Remove="wwwroot\appsettings.*.json.*" />
+    <!-- Ensure any appsettings files that remain are not treated as static web assets -->
+    <Content Update="wwwroot\appsettings.json">
+      <IsStaticWebAsset>false</IsStaticWebAsset>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
+    <Content Update="wwwroot\appsettings.*.json">
+      <IsStaticWebAsset>false</IsStaticWebAsset>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+	<ItemGroup>
+		<Content Remove="wwwroot\appsettings.json.gz" />
+		<Content Remove="wwwroot\_framework\**" />
+	</ItemGroup>
+  <!-- Ensure Blazor WebAssembly static assets are available in the server wwwroot during development/build -->
+  <!-- Only publish/copy client static assets during a Publish operation to avoid
+       merging client wwwroot into server wwwroot during normal builds which can
+       create duplicate Static Web Assets and compressed variants. -->
+  <Target Name="PublishClientStaticAssets" BeforeTargets="Publish">
+    <!-- Publish the client project to a temporary folder, then copy its wwwroot contents into the server wwwroot.
+         This avoids creating a nested wwwroot/wwwroot directory when publishing directly into the server wwwroot. -->
+    <PropertyGroup>
+      <_ClientPublishDir>$(ProjectDir)obj\ClientPublish\</_ClientPublishDir>
+    </PropertyGroup>
+
+    <Exec Command="dotnet publish &quot;..\HexShield.Client\HexShield.Client.csproj&quot; -c $(Configuration) -o &quot;$(_ClientPublishDir)&quot;" />
+
+    <ItemGroup>
+      <!--
+        Include all client static files except those that would conflict with server-owned
+        files (appsettings and pre-compressed artifacts) and the client _framework runtime.
+      -->
+      <_ClientStaticFiles Include="$(_ClientPublishDir)wwwroot\**\*.*"
+                         Exclude="$(_ClientPublishDir)wwwroot\appsettings.json;$(_ClientPublishDir)wwwroot\appsettings.json.gz;$(_ClientPublishDir)wwwroot\_framework\**" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(ProjectDir)wwwroot" Condition="!Exists('$(ProjectDir)wwwroot')" />
+
+    <!-- Remove any accidentally nested wwwroot folder from previous builds to avoid duplicate mappings -->
+    <RemoveDir Directories="$(ProjectDir)wwwroot\wwwroot" Condition="Exists('$(ProjectDir)wwwroot\\wwwroot')" />
+
+    <Copy SourceFiles="@(_ClientStaticFiles)"
+          DestinationFolder="$(ProjectDir)wwwroot\%(RecursiveDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
 	<ItemGroup>
 		<!-- stop this file from being treated as a static web asset by the Server project -->
 		<Content Update="Components\Layout\ReconnectModal.razor.js">

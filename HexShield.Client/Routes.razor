@@ -1,33 +1,46 @@
-@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Routing
+@using HexShield.Client.Components
 @using HexShield.Client.Components.Layout
 
-<CascadingAuthenticationState>
-    <Router AppAssembly="@typeof(Program).Assembly">
-        <Found Context="routeData">
-            <AuthorizeRouteView RouteData="@routeData"
-                                DefaultLayout="@typeof(PublicLayout)">
-                <NotAuthorized>
-                    <NotAuthorizedView />
-                </NotAuthorized>
-                <Authorizing>
-                    <div class="auth-loading">
-                        <div class="spinner"></div>
-                        <p>Checking authorization...</p>
-                    </div>
-                </Authorizing>
-            </AuthorizeRouteView>
-        </Found>
-        <NotFound>
-            <LayoutView Layout="@typeof(PublicLayout)">
-                <div class="not-found-page">
-                    <h1>404</h1>
-                    <h2>Page not found</h2>
-                    <p>The page you're looking for doesn't exist.</p>
-                    <a href="/" class="primary-button">Back to Home</a>
+<AuthInitializer />
+<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="@routeData"
+                            DefaultLayout="@typeof(PublicLayout)">
+            <NotAuthorized>
+                @if (context.User.Identity?.IsAuthenticated == true)
+                {
+                    <LayoutView Layout="@typeof(PublicLayout)">
+                        <div class="not-found-page">
+                            <h1>403</h1>
+                            <h2>Access denied</h2>
+                            <p>Your account does not have permission to open this page.</p>
+                            <a href="/" class="primary-button">Back to Home</a>
+                        </div>
+                    </LayoutView>
+                }
+                else
+                {
+                    <RedirectToLogin />
+                }
+            </NotAuthorized>
+            <Authorizing>
+                <div class="auth-loading">
+                    <div class="spinner"></div>
+                    <p>Checking authorization...</p>
                 </div>
-            </LayoutView>
-        </NotFound>
-    </Router>
-</CascadingAuthenticationState>
+            </Authorizing>
+        </AuthorizeRouteView>
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(PublicLayout)">
+            <div class="not-found-page">
+                <h1>404</h1>
+                <h2>Page not found</h2>
+                <p>The page you're looking for doesn't exist.</p>
+                <a href="/" class="primary-button">Back to Home</a>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>

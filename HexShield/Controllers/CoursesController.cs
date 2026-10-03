@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace HexShield.Controllers;
 [ApiController]
 [Route("api/admin/courses")]
-//[Authorize(Policy ="AdminOnly")]
+[Authorize(Policy ="AdminOnly")]
 public class CoursesController : ApiControllerBase
 {
     private readonly ICourseService _courseService;

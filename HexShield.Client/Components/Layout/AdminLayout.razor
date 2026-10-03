@@ -1,105 +1,131 @@
 ﻿@inherits LayoutComponentBase
 
 <div class="admin-layout">
-
     <aside class="admin-sidebar">
-
         <div class="admin-brand">
             <div class="admin-logo">H</div>
-
             <div>
                 <strong>HexShield</strong>
-                <span>ADMIN</span>
+                <AuthorizeView Roles="Admin">
+                    <Authorized>
+                        <span>ADMIN</span>
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Roles="Teacher" Context="teacherAuth">
+                    <Authorized>
+                        <span>TEACHER</span>
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Roles="Student" Context="studentAuth">
+                    <Authorized>
+                        <span>STUDENT</span>
+                    </Authorized>
+                </AuthorizeView>
             </div>
         </div>
 
         <div class="admin-navigation">
+            <div class="nav-section-title">OVERVIEW</div>
 
-            <div class="nav-section-title">
-                OVERVIEW
-            </div>
+            <AuthorizeView Roles="Admin">
+                <Authorized>
+                    <NavLink href="/admin" Match="NavLinkMatch.All" class="admin-nav-link">
+                        <span>▦</span>
+                        Dashboard
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
 
-            <NavLink href="/admin"
-                     Match="NavLinkMatch.All"
-                     class="admin-nav-link">
-                <span>▦</span>
-                Dashboard
-            </NavLink>
+            <AuthorizeView Roles="Teacher" Context="teacherOverview">
+                <Authorized>
+                    <NavLink href="/teacher" Match="NavLinkMatch.All" class="admin-nav-link">
+                        <span>▦</span>
+                        Workspace
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
 
+            <AuthorizeView Roles="Student" Context="studentOverview">
+                <Authorized>
+                    <NavLink href="/student" Match="NavLinkMatch.All" class="admin-nav-link">
+                        <span>▦</span>
+                        Workspace
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
 
-            <div class="nav-section-title">
-                MANAGEMENT
-            </div>
+            <AuthorizeView Roles="Admin,Teacher">
+                <Authorized>
+                    <div class="nav-section-title">MANAGEMENT</div>
+                </Authorized>
+            </AuthorizeView>
 
-            <NavLink href="/admin/users"
-                     class="admin-nav-link">
-                <span>♙</span>
-                Users
-            </NavLink>
+            <AuthorizeView Roles="Admin" Context="adminUsers">
+                <Authorized>
+                    <NavLink href="/admin/users" class="admin-nav-link">
+                        <span>♙</span>
+                        Users
+                    </NavLink>
+                    <NavLink href="/admin/organizations" class="admin-nav-link">
+                        <span>⌘</span>
+                        Organizations
+                    </NavLink>
+                    <NavLink href="/admin/courses" class="admin-nav-link">
+                        <span>≡</span>
+                        Courses
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
 
-            <NavLink href="/admin/organizations"
-                     class="admin-nav-link">
-                <span>⌘</span>
-                Organizations
-            </NavLink>
+            <AuthorizeView Roles="Teacher" Context="teacherCourses">
+                <Authorized>
+                    <NavLink href="/teacher/courses" class="admin-nav-link">
+                        <span>≡</span>
+                        Courses
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
 
-
-            <div class="nav-section-title">
-                SECURITY
-            </div>
-
-            <NavLink href="/admin/access-control"
-                     class="admin-nav-link">
-                <span>◈</span>
-                Access Control
-            </NavLink>
-
+            <AuthorizeView Roles="Admin" Context="adminSecurity">
+                <Authorized>
+                    <div class="nav-section-title">SECURITY</div>
+                    <NavLink href="/admin/access-control" class="admin-nav-link">
+                        <span>◈</span>
+                        Access Control
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
         </div>
 
         <div class="admin-sidebar-bottom">
-
-            <a href="/support" class="admin-bottom-link">
-                ◌ Support
-            </a>
-
             <a href="/logout" class="admin-logout">
                 ↪ Logout
             </a>
-
         </div>
-
     </aside>
 
     <div class="admin-main">
-
         <header class="admin-topbar">
-
             <div class="admin-search">
                 <span>⌕</span>
-                <input placeholder="Search users, organizations..." />
+                <input placeholder="Search..." />
             </div>
-
             <div class="admin-top-actions">
-
-                <button class="top-action">
-                    +
-                </button>
-
-                <button class="top-action">
-                    ♧
-                </button>
-
                 <div class="admin-profile">
-                    <div class="profile-avatar">
-                        A
-                    </div>
-
+                    <div class="profile-avatar">H</div>
                     <div>
-                        <strong>Administrator</strong>
-                        <span>Admin</span>
+                        <AuthorizeView>
+                            <Authorized>
+                                <strong>@context.User.Identity?.Name</strong>
+                                <span>Signed in</span>
+                            </Authorized>
+                            <NotAuthorized>
+                                <strong>Guest</strong>
+                                <span>Not signed in</span>
+                            </NotAuthorized>
+                        </AuthorizeView>
                     </div>
                 </div>
-
             </div>
         </header>
         <main class="admin-content">

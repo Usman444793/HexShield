@@ -37,9 +37,29 @@ public class AuthController : ApiControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginRequestDto request)
     {
-        var response = await _authService.LoginAsync(request, GetClientIpAddress());
-        SetRefreshTokenCookie(response.RefreshToken);
-        return Ok(response);
+        Console.WriteLine($"[AUTH] Login request received for: {request.Email}");
+        try 
+        {
+            var response = await _authService.LoginAsync(request, GetClientIpAddress());
+            SetRefreshTokenCookie(response.RefreshToken);
+            Console.WriteLine($"[AUTH] Login successful for: {request.Email}");
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AUTH] Login failed for {request.Email}: {ex.Message}");
+            throw;
+        }
+    }
+
+    [HttpGet("debug-user")]
+    [AllowAnonymous]
+    public async Task<IActionResult> DebugUser(string email)
+    {
+        Console.WriteLine($"[DEBUG] Checking existence of user: {email}");
+        // This is a temporary endpoint to verify DB seeding
+        var user = await _authService.LoginAsync(new LoginRequestDto(email, "AdminPassword123!"), "debug-ip");
+        return Ok(new { exists = true, userId = user.UserId });
     }
 
     [HttpPost("refresh-token")]

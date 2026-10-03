@@ -1,0 +1,22 @@
+@page "/student"
+@attribute [Authorize(Policy = "StudentOnly")]
+@layout HexShield.Client.Components.Layout.AdminLayout
+
+<PageTitle>Student Workspace</PageTitle>
+
+<div class="admin-dashboard">
+    <div class="page-heading">
+        <div>
+            <span class="eyebrow">HEXSHIELD LEARNING</span>
+            <h1>Student Workspace</h1>
+            <p>Your learning dashboard. Course enrollment and progress will appear here as those modules come online.</p>
+        </div>
+    </div>
+    <div class="admin-cards">
+        <div class="admin-card">
+            <span class="card-label">ACCOUNT</span>
+            <h2>Signed in</h2>
+            <p>You are authenticated as a student. Admin and teacher tools stay hidden from this workspace.</p>
+        </div>
+    </div>
+</div>

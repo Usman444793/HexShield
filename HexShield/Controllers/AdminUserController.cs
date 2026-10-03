@@ -18,7 +18,6 @@ public class AdminUserController : ApiControllerBase
     }
 
     [HttpGet]
-    [HttpGet("/api/adminuser/users")]
     public async Task<ActionResult<IEnumerable<UserListDto>>> GetUsers()
     {
         var users = await _adminService.GetUsersAsync();
@@ -26,7 +25,6 @@ public class AdminUserController : ApiControllerBase
     }
 
     [HttpGet("{id}")]
-    [HttpGet("/api/adminuser/user/{id}")]
     public async Task<ActionResult<UserDetailsDto>> GetUserById(string id)
     {
         var user = await _adminService.GetUserByIdAsync(id);
@@ -35,7 +33,6 @@ public class AdminUserController : ApiControllerBase
     }
 
     [HttpPost]
-    [HttpPost("/api/adminuser/users")]
     public async Task<ActionResult<UserDetailsDto>> CreateUser([FromBody] CreateUserRequestDto dto)
     {
         var user = await _adminService.CreateUserAsync(dto);
@@ -43,7 +40,6 @@ public class AdminUserController : ApiControllerBase
     }
 
     [HttpPut("{id}")]
-    [HttpPut("/api/adminuser/user/{id}")]
     public async Task<ActionResult<UserDetailsDto>> UpdateUser(string id, [FromBody] UpdateUserDto dto)
     {
         var user = await _adminService.UpdateUserAsync(id, dto);
@@ -51,8 +47,7 @@ public class AdminUserController : ApiControllerBase
     }
 
     [HttpPut("{id}/activate")]
-    [HttpPut("/api/adminuser/user/{id}/activate")]
-    public async Task<ActionResult> ActivateUser(string id) 
+    public async Task<ActionResult> ActivateUser(string id)
     {
         var activate = await _adminService.SetUserActiveStatusAsync(id, true);
         if (!activate) return NotFound(new { message = $"User with ID '{id}' was not found." });
@@ -60,8 +55,6 @@ public class AdminUserController : ApiControllerBase
     }
 
     [HttpPut("{id}/deactivate")]
-    [HttpPut("{id}/deactive")]
-    [HttpPut("/api/adminuser/user/{id}/deactive")]
     public async Task<ActionResult> DeactivateUser(string id)
     {
         var deactive = await _adminService.SetUserActiveStatusAsync(id, false);
@@ -70,7 +63,6 @@ public class AdminUserController : ApiControllerBase
     }
 
     [HttpPost("{id}/roles")]
-    [HttpPost("/api/adminuser/users/{id}/roles")]
     public async Task<ActionResult> AssignRole(string id, [FromBody] AssignRoleDto dto)
     {
         var role = await _adminService.AssignRoleAsync(id, dto.RoleName);
@@ -79,7 +71,6 @@ public class AdminUserController : ApiControllerBase
     }
 
     [HttpDelete("{id}/roles/{roleName}")]
-    [HttpDelete("/api/adminuser/users/{id}/roles/{roleName}")]
     public async Task<ActionResult> RemoveRole(string id, string roleName)
     {
         var success = await _adminService.RemoveRoleAsync(id, roleName);
