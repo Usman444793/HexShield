@@ -1,5 +1,6 @@
 @page "/logout"
-@inject CustomAuthenticationStateProvider AuthState
+@using HexShield.Client.Services
+@inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @layout PublicLayout
 
@@ -17,7 +18,12 @@
 @code {
     protected override async Task OnInitializedAsync()
     {
-        await AuthState.MarkUserAsLoggedOut();
+        var markOut = AuthStateProvider?.GetType().GetMethod("MarkUserAsLoggedOut");
+        if (markOut != null)
+        {
+            var task = markOut.Invoke(AuthStateProvider, null);
+            if (task is Task t) await t;
+        }
         Navigation.NavigateTo("/login");
     }
 }

@@ -1,20 +1,20 @@
-﻿using System.ComponentModel.DataAnnotations;
-using HexShield.Models.Academic;
-using HexShield.Models.Common;
-namespace HexShield.Models.Assignments;
-public class Assignment : BaseEntity
+﻿using HexShield.Models.Common;
+using System.ComponentModel.DataAnnotations;
+namespace HexShield.Models.Academic;
+public class Assignment : BaseEntity, IMultiTenant
 {
-    [Required]
+    public int TenantId { get; set; }
+    public Tenant Tenant { get; set; } = null!;
     public int CourseId { get; set; }
     public Course Course { get; set; } = null!;
-    [Required,MaxLength(200)]
+    public int LessonId { get; set; }
+    public Lesson? Lesson { get; set; }
+    [Required, MaxLength(150)]
     public string Title { get; set; } = string.Empty;
-    [Required,MaxLength(1000)]
-    public string Description { get; set; } = string.Empty;
-    [Required]
-    public DateTimeOffset DueDate {  get; set; }
-    [Range(1, 1000)]
-    public int MaxScore { get; set; } = 100;
+    [MaxLength(4000)]
+    public string? Description { get; set; }
+    public DateTime DueDate { get; set; }
+    public decimal MaxScore { get; set; } = 100;
     public bool IsPublished { get; set; } = false;
     public ICollection<Submission> Submissions { get; set; } = new List<Submission>();
 }

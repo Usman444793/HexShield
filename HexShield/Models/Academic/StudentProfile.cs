@@ -1,7 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using HexShield.Models.Common;
 using HexShield.Models.Identity;
-using HexShield.Models.Assignments;
 using HexShield.Models.Progress;
 using HexShield.Models.Quizzes;
 namespace HexShield.Models.Academic;

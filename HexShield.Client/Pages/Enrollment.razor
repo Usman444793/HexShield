@@ -1,0 +1,129 @@
+﻿@page "/admin/courses/{CourseId:int}/enrollments"
+@page "/teacher/courses/{CourseId:int}/enrollments"
+@using System.Net.Http.Json
+@using HexShield.Models.Academic
+@using HexShield.Models.DTOs.Enrollments
+@inject HttpClient Http
+<PageTitle>Enrollments - Hex Shield</PageTitle>
+<div class="enrollments-container">
+    <div class="page-header">
+        <h1 class="page-title">Course #@CourseId - Roster & Access</h1>
+        <p class="page-subtitle">Manage student access, status flags, and enrollments.</p>
+    </div>
+    <button class="btn-primary" @onclick="() => isEnrollModalOpen = true">
+        <i class="fa-solid fa-user-plus"></i> Enroll
+    </button>
+    @if (string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success")">
+            <span>@statusMessage</span>
+            <button class="alert-close" @onclick="() => statusMessage = null">&times;</button>
+            </div>
+    }
+    <div class="table-card">
+        @if (isLoading)
+        {
+            <div class="loading-state"><i class="fa-solid fa-spinner fa-spin spinner"></i><p>Loading roster...</p></div>
+        }
+        else if (!enrollments.Any())
+        {
+            <div class="empty-state"><h3>No students enrolled yet.</h3></div>
+        }
+        else
+        {
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Student Name</th>
+                        <th>Email</th>
+                        <th>Enrolled Date</th>
+                        <th>Status</th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach(var item in enrollments)
+                    {
+                        <tr>
+                            <td><strong>@item.StudentName</strong></td>
+                            <td>@item.StudentEmail</td>
+                            <td>@item.EnrolledAt.ToShortDateString()</td>
+                            <td>
+                                <span class="badge status-@item.Status.ToString().ToLower()">@item.Status</span>
+                            </td>
+                            <td class="text-right">
+                                <button class="btn-icon btn-danger-icon" @onclick="() => Unenroll(item.Id)">
+                                    <i class="fa-solid fa-user-minus"></i>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+@if (isEnrollModalOpen)
+{
+    <div class="modal-overlay">
+        <div class="modal-card">
+            <h3>Enroll Student</h3>
+            <div class="form-group">
+                <label>Student User Id</label>
+                <input type="text" class="form-group" @bind="newStudentId" placeholder="Enter Student GUID..." />
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" @onclick="() => isEnrollModalOpen = false">Cancel</button>
+                <button class="btn-primary" @onclick="() => SubmitEnrollment">Enroll</button>
+            </div>
+        </div>
+    </div>
+}
+@code {
+    [Parameter] public int CourseId { get; set; }
+    private List<EnrollmentListDto> enrollments = new();
+    private bool isLoading = true;
+    private bool isEnrollModalOpen = false;
+    private string newStudentId = string.Empty;
+    private string? statusMessage;
+    private bool isError;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEnrollments();
+    }
+    private async Task LoadEnrollments()
+    {
+        isLoading = true;
+        try
+        {
+            enrollments = await Http.GetFromJsonAsync<List<EnrollmentListDto>>($"api/enrollments/courses/{CourseId}") ?? new();
+        }
+        catch(Exception ex)
+        {
+            statusMessage = ex.Message;
+            isError = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    private async Task SubmitEnrollment()
+    {
+        if (string.IsNullOrWhiteSpace(newStudentId)) return;
+        var response = await Http.PostAsJsonAsync("api/enrollments", new CreateEnrollmentRequestDto(CourseId, newStudentId));
+        if (response.IsSuccessStatusCode)
+        {
+            isEnrollModalOpen = false;
+            newStudentId = string.Empty;
+            await LoadEnrollments();
+        }
+    }
+    private async Task Unenroll(int id)
+    {
+        var response = await Http.DeleteAsync($"api/enrollments/{id}");
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadEnrollments();
+        }
+    }
+}

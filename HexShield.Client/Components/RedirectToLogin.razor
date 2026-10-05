@@ -1,4 +1,5 @@
-@inject CustomAuthenticationStateProvider AuthState
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 
 @code {
@@ -9,8 +10,15 @@
             return;
         }
 
-        await AuthState.InitializeFromStorageAsync();
-        var state = await AuthState.GetAuthenticationStateAsync();
+        // Ensure provider has initialized (WASM provider exposes InitializeFromStorageAsync)
+        var init = AuthStateProvider?.GetType().GetMethod("InitializeFromStorageAsync");
+        if (init != null)
+        {
+            var r = init.Invoke(AuthStateProvider, null);
+            if (r is Task t) await t;
+        }
+
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
         if (state.User.Identity?.IsAuthenticated == true)
         {
             return;

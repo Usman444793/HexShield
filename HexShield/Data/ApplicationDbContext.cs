@@ -1,6 +1,5 @@
 using HexShield.Infrastructure.Tenancy;
 using HexShield.Models.Academic;
-using HexShield.Models.Assignments;
 using HexShield.Models.Common;
 using HexShield.Models.Identity;
 using HexShield.Models.Progress;
@@ -211,7 +210,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser,Applicatio
         //enrollement course + student
         builder.Entity<Enrollment>(entity =>
         {
-            entity.HasOne(e => e.StudentProfile).WithMany(e => e.Enrollments).HasForeignKey(e => e.StudentProfileId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.StudentProfileId).WithMany(e => e.Enrollments).HasForeignKey(e => e.StudentProfileId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Course).WithMany(e => e.Enrollments).HasForeignKey(e => e.CourseId).OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(e => new { e.StudentProfileId, e.CourseId }).IsUnique().HasFilter("[IsDeleted] = 0");
         });
@@ -226,9 +225,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser,Applicatio
         builder.Entity<Submission>(entity =>
         {
             entity.HasOne(s => s.Assignment).WithMany(s => s.Submissions).HasForeignKey(s => s.AssignmentId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(s => s.StudentProfile).WithMany(s => s.Submissions).HasForeignKey(s => s.StudentProfileId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(s => s.GradedBy).WithMany().HasForeignKey(s => s.GradedById).OnDelete(DeleteBehavior.Restrict);
-            entity.HasIndex(s => new { s.AssignmentId, s.StudentProfileId }).IsUnique().HasFilter("[IsDeleted] = 0");
+            entity.HasOne(s => s.Student).WithMany(s => s.Submissions).HasForeignKey(s => s.StudentId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(s => new { s.AssignmentId, s.StudentId}).IsUnique().HasFilter("[IsDeleted] = 0");
         });
     }
     //Quiz

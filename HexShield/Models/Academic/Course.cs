@@ -1,5 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using HexShield.Models.Assignments;
+using HexShield.Models.Academic;
 using HexShield.Models.Common;
 using HexShield.Models.Quizzes;
 

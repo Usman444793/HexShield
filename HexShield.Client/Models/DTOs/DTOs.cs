@@ -5,13 +5,12 @@ namespace HexShield.Models.DTOs;
 public record AuthResponseDto(
     string AccessToken,
     string RefreshToken,
-    DateTimeOffset AccessTokenExpiration,
+    DateTimeOffset ExpiresAt,
     string UserId,
     string Email,
     IEnumerable<string> Roles,
-    int TenantId = 0
+    int TenantId
 );
-
 public record LoginRequestDto
 {
     [Required(ErrorMessage = "Email is required.")]

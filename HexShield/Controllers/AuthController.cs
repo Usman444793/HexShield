@@ -111,13 +111,19 @@ public class AuthController : ApiControllerBase
 
     private void SetRefreshTokenCookie(string refreshToken)
     {
+        // Use request scheme to decide cookie security and SameSite.
+        // On HTTPS we use SameSite=None and Secure=true so modern browsers will accept the cookie for cross-site requests.
+        // For HTTP (development) fall back to Lax and Secure=false so the cookie can be set during local testing.
+        var isHttps = Request?.IsHttps ?? false;
         var cookieOption = new CookieOptions
         {
             HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Strict,
-            Expires = DateTimeOffset.UtcNow.AddDays(7)
+            Secure = isHttps,
+            SameSite = isHttps ? SameSiteMode.None : SameSiteMode.Lax,
+            Expires = DateTimeOffset.UtcNow.AddDays(7),
+            Path = "/"
         };
+
         Response.Cookies.Append("refreshToken", refreshToken, cookieOption);
     }
 }

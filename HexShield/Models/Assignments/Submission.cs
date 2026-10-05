@@ -1,24 +1,29 @@
-﻿using HexShield.Models.Academic;
+﻿using System.ComponentModel.DataAnnotations;
 using HexShield.Models.Common;
 using HexShield.Models.Identity;
-using System.ComponentModel.DataAnnotations;
-namespace HexShield.Models.Assignments;
-public class Submission : BaseEntity
+namespace HexShield.Models.Academic;
+public enum SubmissionStatus
 {
-    [Required]
+    Submitted = 1,
+    Graded = 2,
+    Returned = 3
+}
+public class Submission : BaseEntity, IMultiTenant
+{
+    public int TenantId { get; set; }
+    public Tenant Tenant { get; set; } = null!;
     public int AssignmentId { get; set; }
     public Assignment Assignment { get; set; } = null!;
     [Required]
-    public int StudentProfileId { get; set; }
-    public StudentProfile StudentProfile { get; set; } = null!;
-    [Required,MaxLength(10000)]
-    public string Content { get; set; } = string.Empty;
-    public DateTimeOffset SubmittedAt { get; set; } = DateTimeOffset.UtcNow;
-    [Range(0,1000)]
-    public int? Score { get; set; }
+    public string StudentId { get; set; } = string.Empty;
+    public ApplicationUser Student { get; set; } = null!;
     [MaxLength(4000)]
+    public string? Content { get; set; }
+    [MaxLength(500)]
+    public string? AttachmentUrl { get; set; }
+    public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
+    public decimal Grade { get; set; }
+    [MaxLength(1000)]
     public string? Feedback { get; set; }
-    public DateTimeOffset? GradedAt { get; set; }
-    public string? GradedById { get; set; }
-    public ApplicationUser? GradedBy { get; set; }
+    public SubmissionStatus Status { get; set; } = SubmissionStatus.Submitted;
 }

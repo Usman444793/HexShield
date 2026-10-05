@@ -1,8 +1,10 @@
 @page "/register"
 @layout PublicLayout
 @attribute [AllowAnonymous]
+@using Microsoft.AspNetCore.Components.WebAssembly.Http
+@using HexShield.Client.Services
 @inject HttpClient Http
-@inject CustomAuthenticationStateProvider AuthState
+@inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 
 <PageTitle>Create Account | HexShield</PageTitle>
@@ -76,7 +78,14 @@
 
         try
         {
-            var response = await Http.PostAsJsonAsync("api/auth/register", registerRequest);
+            var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/register")
+            {
+                Content = JsonContent.Create(registerRequest)
+            };
+            request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
+            request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+
+            var response = await Http.SendAsync(request);
             if (!response.IsSuccessStatusCode)
             {
                 errorMessage = "Registration failed. Please check your information.";
@@ -90,7 +99,13 @@
                 return;
             }
 
-            await AuthState.MarkUserAsAuthenticated(result.AccessToken);
+            // Use client-side provider if available
+            var mark = AuthStateProvider?.GetType().GetMethod("MarkUserAsAuthenticated");
+            if (mark != null)
+            {
+                var task = mark.Invoke(AuthStateProvider, new object[] { result.AccessToken });
+                if (task is Task t) await t;
+            }
 
             var roles = result.Roles ?? Enumerable.Empty<string>();
             if (roles.Any(r => string.Equals(r, "Admin", StringComparison.OrdinalIgnoreCase)))

@@ -1,15 +1,23 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using HexShield.Models.Common;
+using HexShield.Models.Identity;
 namespace HexShield.Models.Academic;
-public class Enrollment : BaseEntity
+public enum EnrollmentStatus
 {
-    [Required]
-    public int StudentProfileId { get; set; }
-    public StudentProfile StudentProfile { get; set; } = null!;
-    [Required]
+    Active = 1,
+    Completed = 2,
+    Dropped = 3,
+    Suspended = 4
+}
+public class Enrollment : BaseEntity, IMultiTenant
+{
+    public int TenantId { get; set; }
+    public Tenant Tenant { get; set; } = null!;
     public int CourseId { get; set; }
     public Course Course { get; set; } = null!;
-    public DateTimeOffset EnrolledAt { get; set; } = DateTimeOffset.UtcNow;
-    [Required,MaxLength(30)]
-    public string Status { get; set; } = "Active";
+    [Required]
+    public string StudentProfileId { get; set; } = string.Empty;
+    public ApplicationUser Student { get; set; } = null!;
+    public DateTime EnrolledAt { get; set; } = DateTime.UtcNow;
+    public EnrollmentStatus Status { get; set; } = EnrollmentStatus.Active;
 }

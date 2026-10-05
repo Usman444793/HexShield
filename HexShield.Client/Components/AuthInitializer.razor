@@ -1,11 +1,44 @@
-@inject CustomAuthenticationStateProvider AuthState
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
+
+@* AuthInitializer ensures the client authentication state provider is initialized
+   from browser storage (localStorage) after the Blazor app has rendered. It can
+   optionally render child content so it can wrap other parts of the app. *@
+
+@if (ChildContent is not null)
+{
+    @ChildContent
+}
 
 @code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (!firstRender)
+            return;
+
+        try
         {
-            await AuthState.InitializeFromStorageAsync();
+            if (AuthStateProvider is not null)
+            {
+                // Some authentication state providers (WASM client) expose
+                // InitializeFromStorageAsync(). Call it via reflection when present.
+                var method = AuthStateProvider.GetType().GetMethod("InitializeFromStorageAsync");
+                if (method != null)
+                {
+                    var result = method.Invoke(AuthStateProvider, null);
+                    if (result is Task task)
+                    {
+                        await task;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Best-effort only; ignore failures during server prerender or when JS interop is unavailable.
         }
     }
 }

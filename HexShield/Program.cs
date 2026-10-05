@@ -67,6 +67,35 @@ builder.Services.AddAuthentication(options =>
 {
     options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     options.SaveToken = false;
+    // Add events for detailed logging during development to diagnose token validation failures
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = ctx =>
+        {
+            var logger = ctx.HttpContext.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("JwtBearerEvents");
+            logger?.LogDebug("OnMessageReceived: Scheme={Scheme} Path={Path}", ctx.Request?.Scheme, ctx.Request?.Path);
+            return Task.CompletedTask;
+        },
+        OnAuthenticationFailed = ctx =>
+        {
+            var logger = ctx.HttpContext.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("JwtBearerEvents");
+            logger?.LogWarning(ctx.Exception, "JWT authentication failed");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = ctx =>
+        {
+            var logger = ctx.HttpContext.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("JwtBearerEvents");
+            var sub = ctx.Principal?.FindFirst("sub")?.Value;
+            logger?.LogInformation("Token validated for sub={Sub}", sub);
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("JwtBearerEvents");
+            logger?.LogWarning("JwtBearer challenge for {Path}", context.Request.Path);
+            return Task.CompletedTask;
+        }
+    };
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -97,8 +126,9 @@ builder.Services.AddScoped(sp =>
     // Fallback to a reasonable default if no context is available
     return new HttpClient { BaseAddress = new Uri("http://localhost:5282/") };
 });
-builder.Services.AddScoped<HexShield.Client.Services.CustomAuthenticationStateProvider>();
-builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<HexShield.Client.Services.CustomAuthenticationStateProvider>());
+// Do not register the client-side CustomAuthenticationStateProvider on the server.
+// The WASM client registers its own provider (HexShield.Client.Program.cs) and
+// the server should not attempt to resolve client-only services such as ITokenStorage.
 builder.Services.AddScoped<ILessonService, LessonService>();
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
@@ -148,6 +178,17 @@ builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddRazorComponents().AddInteractiveServerComponents().AddInteractiveWebAssemblyComponents();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DefaultAllowLocalDebug", policy =>
+    {
+        // Allow the localhost origins used by the dev server and the WASM client and allow credentials
+        policy.WithOrigins("https://localhost:7263", "http://localhost:5282")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
 builder.Services.AddAntiforgery();
 if (!builder.Environment.IsDevelopment())
 {
@@ -190,6 +231,7 @@ var staticAssetsManifestPath = Path.Combine(AppContext.BaseDirectory, "HexShield
 
 // Routing must be registered before authentication/authorization and endpoint mapping
 app.UseRouting();
+app.UseCors("DefaultAllowLocalDebug");
 
 // Cross-cutting middleware
 app.UseRateLimiter();
@@ -199,6 +241,7 @@ app.UseOutputCache();
 app.UseMiddleware<TenantResolverMiddleware>();
 
 // Authentication & Authorization must be between UseRouting and UseEndpoints
+app.UseCors("DefaultAllowLocalDebug");
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -217,7 +260,20 @@ else
 
 app.MapControllers().RequireRateLimiting("ApiPolicy");
 
-app.MapRazorComponents<App>().AddInteractiveServerRenderMode().AddInteractiveWebAssemblyRenderMode()
+// Enable both server and WebAssembly interactive render modes. Some components use
+// InteractiveAutoRenderMode and require server endpoints to be mapped.
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode()
+    .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(HexShield.Client._Imports).Assembly);
 await DbInitializer.InitializeAsync(app.Services);
+// Serve the Blazor client app for non-API routes so client-side routing can handle protected UI paths.
+// This ensures requests like /admin return the SPA shell (which can attach the JWT from localStorage)
+// instead of the server returning 401 for a document request that cannot read localStorage.
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+
+// Fallback to index.html for routes that are not API endpoints or static files
+app.MapFallbackToFile("index.html");
+
 app.Run();

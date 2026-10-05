@@ -1,0 +1,185 @@
+﻿@page "/admin/courses/{CourseId:int}/assignments"
+@page "/teacher/courses/{CourseId:int}/assignments"
+@using System.Net.Http.Json
+@using HexShield.Models.DTOs
+@inject HttpClient Http
+
+<PageTitle>Assignments - HexShield</PageTitle>
+
+<div class="assignments-container">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Course #@CourseId - Assignments</h1>
+            <p class="page-subtitle">Manage assignments, track student submissions, and submit grades.</p>
+        </div>
+        <button class="btn-primary" @onclick="OpenCreateDrawer">
+            <i class="fa-solid fa-plus"></i> Add Assignment
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success")">
+            <span>@statusMessage</span>
+            <button class="alert-close" @onclick="() => statusMessage = null">&times;</button>
+        </div>
+    }
+
+    <div class="table-card">
+        @if (isLoading)
+        {
+            <div class="loading-state"><i class="fa-solid fa-spinner fa-spin spinner"></i><p>Loading assignments...</p></div>
+        }
+        else if (!assignments.Any())
+        {
+            <div class="empty-state"><h3>No assignments found for this course.</h3></div>
+        }
+        else
+        {
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Due Date</th>
+                        <th>Max Score</th>
+                        <th>Submissions</th>
+                        <th>Status</th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in assignments)
+                    {
+                        <tr>
+                            <td><strong>@item.Title</strong></td>
+                            <td>@item.DueDate.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@item.MaxScore pts</td>
+                            <td><span class="badge-neutral">@item.SubmissionCount</span></td>
+                            <td>
+                                <span class="badge @(item.IsPublished ? "status-published" : "status-draft")">
+                                    @(item.IsPublished ? "Published" : "Draft")
+                                </span>
+                            </td>
+                            <td class="text-right">
+                                <button class="btn-icon" title="View Submissions" @onclick="() => ViewSubmissions(item.Id)">
+                                    <i class="fa-solid fa-list-check"></i>
+                                </button>
+                                <button class="btn-icon btn-danger-icon" title="Delete" @onclick="() => DeleteAssignment(item.Id)">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@if (isDrawerOpen)
+{
+    <div class="drawer-overlay" @onclick="() => isDrawerOpen = false"></div>
+    <div class="drawer-panel">
+        <div class="drawer-header">
+            <h2>Create New Assignment</h2>
+            <button class="drawer-close" @onclick="() => isDrawerOpen = false">&times;</button>
+        </div>
+        <div class="drawer-body">
+            <div class="form-group">
+                <label>Title *</label>
+                <input type="text" class="form-control" @bind="newTitle" placeholder="e.g. Midterm Project" />
+            </div>
+            <div class="form-group">
+                <label>Due Date *</label>
+                <input type="datetime-local" class="form-control" @bind="newDueDate" />
+            </div>
+            <div class="form-group">
+                <label>Max Score *</label>
+                <input type="number" class="form-control" @bind="newMaxScore" />
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea class="form-control textarea" rows="5" @bind="newDescription"></textarea>
+            </div>
+            <div class="drawer-footer">
+                <button class="btn-secondary" @onclick="() => isDrawerOpen = false">Cancel</button>
+                <button class="btn-primary" @onclick="CreateAssignment">Save Assignment</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int CourseId { get; set; }
+
+    private List<AssignmentListDto> assignments = new();
+    private bool isLoading = true;
+    private bool isDrawerOpen = false;
+
+    private string newTitle = string.Empty;
+    private string? newDescription;
+    private DateTime newDueDate = DateTime.UtcNow.AddDays(7);
+    private decimal newMaxScore = 100;
+
+    private string? statusMessage;
+    private bool isError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAssignments();
+    }
+
+    private async Task LoadAssignments()
+    {
+        isLoading = true;
+        try
+        {
+            assignments = await Http.GetFromJsonAsync<List<AssignmentListDto>>($"api/assignments/course/{CourseId}") ?? new();
+        }
+        catch (Exception ex)
+        {
+            statusMessage = ex.Message;
+            isError = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OpenCreateDrawer()
+    {
+        newTitle = string.Empty;
+        newDescription = null;
+        newDueDate = DateTime.UtcNow.AddDays(7);
+        newMaxScore = 100;
+        isDrawerOpen = true;
+    }
+
+    private async Task CreateAssignment()
+    {
+        if (string.IsNullOrWhiteSpace(newTitle)) return;
+
+        var dto = new CreateAssignmentRequestDto(CourseId, null, newTitle, newDescription, newDueDate, newMaxScore);
+        var response = await Http.PostAsJsonAsync("api/assignments", dto);
+        if (response.IsSuccessStatusCode)
+        {
+            isDrawerOpen = false;
+            await LoadAssignments();
+        }
+    }
+
+    private async Task DeleteAssignment(int id)
+    {
+        var response = await Http.DeleteAsync($"api/assignments/{id}");
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadAssignments();
+        }
+    }
+
+    private void ViewSubmissions(int assignmentId)
+    {
+        // Navigate or open sub-modal to view/grade submissions
+    }
+}

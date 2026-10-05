@@ -69,8 +69,7 @@
         Include all client static files except those that would conflict with server-owned
         files (appsettings and pre-compressed artifacts) and the client _framework runtime.
       -->
-      <_ClientStaticFiles Include="$(_ClientPublishDir)wwwroot\**\*.*"
-                         Exclude="$(_ClientPublishDir)wwwroot\appsettings.json;$(_ClientPublishDir)wwwroot\appsettings.json.gz;$(_ClientPublishDir)wwwroot\_framework\**" />
+      <_ClientStaticFiles Include="$(_ClientPublishDir)wwwroot\**\*.*" Exclude="$(_ClientPublishDir)wwwroot\appsettings.json;$(_ClientPublishDir)wwwroot\appsettings.json.gz;$(_ClientPublishDir)wwwroot\_framework\**" />
     </ItemGroup>
 
     <MakeDir Directories="$(ProjectDir)wwwroot" Condition="!Exists('$(ProjectDir)wwwroot')" />
@@ -78,9 +77,7 @@
     <!-- Remove any accidentally nested wwwroot folder from previous builds to avoid duplicate mappings -->
     <RemoveDir Directories="$(ProjectDir)wwwroot\wwwroot" Condition="Exists('$(ProjectDir)wwwroot\\wwwroot')" />
 
-    <Copy SourceFiles="@(_ClientStaticFiles)"
-          DestinationFolder="$(ProjectDir)wwwroot\%(RecursiveDir)"
-          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_ClientStaticFiles)" DestinationFolder="$(ProjectDir)wwwroot\%(RecursiveDir)" SkipUnchangedFiles="true" />
   </Target>
 	<ItemGroup>
 		<!-- stop this file from being treated as a static web asset by the Server project -->
@@ -89,6 +86,6 @@
 		</Content>
 		<!-- also remove if it was included as Content by wildcard -->
 		<Content Remove="Components\Layout\ReconnectModal.razor.js" />
-		<None  Remove="Components\Layout\ReconnectModal.razor.js" />
+		<None Remove="Components\Layout\ReconnectModal.razor.js" />
 	</ItemGroup>
 </Project>
