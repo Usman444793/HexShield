@@ -1,6 +1,5 @@
 @page "/logout"
 @layout PublicLayout
-@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @using HexShield.Client.Services
 @inject CustomAuthenticationStateProvider AuthState
 @inject NavigationManager Navigation
@@ -20,6 +19,6 @@
     protected override async Task OnInitializedAsync()
     {
         await AuthState.MarkUserAsLoggedOut();
-        Navigation.NavigateTo("/login", forceLoad: true);
+        Navigation.NavigateTo("/login");
     }
 }

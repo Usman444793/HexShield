@@ -1,0 +1,260 @@
+/* ==========================================================================
+   Design Tokens & Local Custom Properties
+   ========================================================================== */
+:host {
+    --primary: #003441;
+    --primary-container: #0f4c5c;
+    --primary-fixed: #b6ebfe;
+    --on-primary: #ffffff;
+    --secondary: #006b5f;
+    --secondary-fixed: #62fae3;
+    --on-secondary-fixed: #00201c;
+    --surface: #f8f9ff;
+    --surface-container-low: #eff4ff;
+    --surface-container-high: #dce9ff;
+    --surface-container-lowest: #ffffff;
+    --on-surface: #0b1c30;
+    --on-surface-variant: #40484b;
+    --outline: #70787c;
+    --outline-variant: #c0c8cb;
+    --error: #ba1a1a;
+    --error-container: #ffdad6;
+    --on-error-container: #93000a;
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    display: block;
+    width: 100%;
+}
+
+/* ==========================================================================
+   Page Container & Ambient Background
+   ========================================================================== */
+.auth-page {
+    min-height: calc(100vh - 4rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    background-color: var(--surface);
+    background-image: radial-gradient(circle at 50% 10%, rgba(182, 235, 254, 0.45) 0%, rgba(98, 250, 227, 0.12) 32%, transparent 68%), radial-gradient(circle at 85% 85%, rgba(15, 76, 92, 0.05) 0%, transparent 40%);
+    font-family: var(--font-sans);
+}
+
+/* ==========================================================================
+   Card Wrapper
+   ========================================================================== */
+.auth-card.register-card {
+    width: 100%;
+    max-width: 32rem;
+    background-color: var(--surface-container-lowest);
+    border: 1px solid rgba(192, 200, 203, 0.45);
+    border-radius: 1.25rem;
+    padding: 2.5rem 2.25rem;
+    box-shadow: 0 20px 40px -15px rgba(11, 28, 48, 0.08), 0 2px 6px rgba(11, 28, 48, 0.02);
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==========================================================================
+   Header & Badge
+   ========================================================================== */
+.auth-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 1.75rem;
+}
+
+.auth-logo {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.75rem;
+    background-color: var(--primary);
+    color: var(--secondary-fixed);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    box-shadow: 0 4px 12px rgba(0, 52, 65, 0.2);
+    margin-bottom: 1.25rem;
+}
+
+.auth-header h1 {
+    font-size: 1.625rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--primary);
+    margin: 0 0 0.375rem 0;
+}
+
+.auth-header p {
+    font-size: 0.875rem;
+    color: var(--on-surface-variant);
+    margin: 0;
+}
+
+/* ==========================================================================
+   Error Alert Banner
+   ========================================================================== */
+.auth-error {
+    background-color: var(--error-container);
+    color: var(--on-error-container);
+    border: 1px solid rgba(186, 26, 26, 0.2);
+    border-radius: 0.625rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.4;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+}
+
+/* ==========================================================================
+   Form Grid & Field Groups
+   ========================================================================== */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.125rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+}
+
+@media (min-width: 540px) {
+    .form-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+    .form-group label {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--on-surface);
+    }
+
+.form-control {
+    width: 100%;
+    height: 2.75rem;
+    padding: 0 0.875rem;
+    border-radius: 0.625rem;
+    border: 1px solid var(--outline-variant);
+    background-color: var(--surface-container-low);
+    color: var(--on-surface);
+    font-size: 0.875rem;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+    .form-control::placeholder {
+        color: var(--outline);
+        font-size: 0.8125rem;
+    }
+
+    .form-control:focus {
+        outline: none;
+        background-color: var(--surface-container-lowest);
+        border-color: var(--secondary);
+        box-shadow: 0 0 0 3px rgba(0, 107, 95, 0.15);
+    }
+
+.text-muted {
+    font-size: 0.6875rem;
+    color: var(--on-surface-variant);
+    line-height: 1.35;
+    margin-top: 0.25rem;
+}
+
+/* Blazor Native Validation Styles */
+::deep .validation-message {
+    color: var(--error);
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-top: 0.25rem;
+}
+
+::deep .form-control.invalid {
+    border-color: var(--error);
+    background-color: #fff8f7;
+}
+
+    ::deep .form-control.invalid:focus {
+        box-shadow: 0 0 0 3px rgba(186, 26, 26, 0.15);
+    }
+
+/* ==========================================================================
+   Submit Button
+   ========================================================================== */
+.auth-submit {
+    margin-top: 0.625rem;
+    height: 2.875rem;
+    width: 100%;
+    border-radius: 0.625rem;
+    background-color: var(--primary);
+    color: var(--on-primary);
+    border: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 6px 16px -2px rgba(0, 52, 65, 0.25);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    .auth-submit:hover:not(:disabled) {
+        background-color: var(--primary-container);
+        transform: translateY(-1px);
+        box-shadow: 0 10px 20px -3px rgba(0, 52, 65, 0.35);
+    }
+
+    .auth-submit:active:not(:disabled) {
+        transform: translateY(0);
+    }
+
+    .auth-submit:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
+/* ==========================================================================
+   Footer
+   ========================================================================== */
+.auth-footer {
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--surface-container-high);
+    text-align: center;
+    font-size: 0.8125rem;
+    color: var(--on-surface-variant);
+}
+
+    .auth-footer a {
+        color: var(--secondary);
+        font-weight: 700;
+        text-decoration: none;
+        margin-left: 0.25rem;
+        transition: color 0.15s ease;
+    }
+
+        .auth-footer a:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }

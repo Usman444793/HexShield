@@ -245,9 +245,6 @@ if (!app.Environment.IsDevelopment())
     app.UseResponseCompression();
 }
 
-app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
-
 app.UseRouting();
 app.UseCors("DefaultAllowLocalDebug");
 
@@ -259,11 +256,7 @@ app.UseMiddleware<TenantResolverMiddleware>();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-var staticAssetsManifestPath = Path.Combine(AppContext.BaseDirectory, "HexShield.staticwebassets.endpoints.json");
-if (File.Exists(staticAssetsManifestPath))
-{
-    app.MapStaticAssets(staticAssetsManifestPath);
-}
+app.MapStaticAssets();
 
 app.MapControllers().RequireRateLimiting("ApiPolicy");
 

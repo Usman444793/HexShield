@@ -1,0 +1,208 @@
+/* CSS for Security component */
+/* ==========================================================================
+   Design Tokens & Local Custom Properties
+   ========================================================================== */
+:host {
+    --primary: #003441;
+    --primary-container: #0f4c5c;
+    --primary-fixed: #b6ebfe;
+    --on-primary: #ffffff;
+    --secondary: #006b5f;
+    --secondary-fixed: #62fae3;
+    --on-secondary-fixed: #00201c;
+    --on-secondary-container: #007165;
+    --surface: #f8f9ff;
+    --surface-container-low: #eff4ff;
+    --surface-container-high: #dce9ff;
+    --surface-container-highest: #d3e4fe;
+    --surface-container-lowest: #ffffff;
+    --on-surface: #0b1c30;
+    --on-surface-variant: #40484b;
+    --outline: #70787c;
+    --outline-variant: #c0c8cb;
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    display: block;
+    width: 100%;
+    font-family: var(--font-sans);
+    color: var(--on-surface);
+}
+
+/* ==========================================================================
+   Page Header & Navigation Links
+   ========================================================================== */
+h2 {
+    color: var(--primary);
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.text-muted a {
+    color: var(--secondary) !important;
+    font-weight: 600;
+    font-size: 0.75rem;
+    transition: color 0.15s ease;
+}
+
+    .text-muted a:hover {
+        color: var(--primary) !important;
+    }
+
+/* ==========================================================================
+   Infrastructure Pillar Cards
+   ========================================================================== */
+.row .card {
+    background-color: var(--surface-container-lowest);
+    border: 1px solid rgba(192, 200, 203, 0.45) !important;
+    border-radius: 0.875rem !important;
+    box-shadow: 0 4px 16px rgba(11, 28, 48, 0.03) !important;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+    .row .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -4px rgba(11, 28, 48, 0.08) !important;
+    }
+
+.row .card-body {
+    display: flex;
+    flex-direction: column;
+}
+
+.row .card h5 {
+    color: var(--primary);
+    font-size: 1.0625rem;
+    letter-spacing: -0.01em;
+}
+
+/* Icon container */
+.row .card .rounded-3.p-3 {
+    background: var(--primary) !important;
+    color: var(--secondary-fixed) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    box-shadow: 0 4px 12px rgba(0, 52, 65, 0.2);
+}
+
+/* Specification Lists */
+.card-body ul li {
+    font-size: 0.8125rem;
+    color: var(--on-surface-variant) !important;
+    border-bottom: 1px solid var(--surface-container-low);
+    line-height: 1.5;
+}
+
+    .card-body ul li:last-child {
+        border-bottom: none;
+    }
+
+    .card-body ul li strong {
+        color: var(--on-surface);
+    }
+
+/* ==========================================================================
+   Checklist Table Card
+   ========================================================================== */
+.card.mb-4 {
+    background-color: var(--surface-container-lowest);
+    border: 1px solid rgba(192, 200, 203, 0.45) !important;
+    border-radius: 0.875rem !important;
+    box-shadow: 0 4px 16px rgba(11, 28, 48, 0.03) !important;
+    overflow: hidden;
+}
+
+.card-header {
+    background-color: var(--surface-container-lowest) !important;
+    border-bottom: 1px solid var(--surface-container-high) !important;
+    padding: 1rem 1.5rem !important;
+}
+
+    .card-header h5 {
+        color: var(--primary);
+        font-size: 1rem;
+    }
+
+.table {
+    margin-bottom: 0;
+    font-size: 0.875rem;
+}
+
+.table-light th {
+    background-color: var(--surface-container-low) !important;
+    color: var(--on-surface-variant);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--surface-container-high);
+}
+
+.table td {
+    padding: 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--surface-container-low);
+    color: var(--on-surface);
+}
+
+.table tr:hover {
+    background-color: var(--surface-container-low);
+}
+
+.table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Inline Code Snippets */
+code {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    background-color: var(--surface-container-high) !important;
+    color: var(--primary) !important;
+    padding: 0.2rem 0.45rem;
+    border-radius: 0.375rem;
+    border: 1px solid rgba(15, 76, 92, 0.15);
+}
+
+/* ==========================================================================
+   Badges
+   ========================================================================== */
+.badge {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+/* Master Shield Status Top Badge */
+.d-flex > div > .badge.bg-success {
+    background-color: #10b981 !important;
+    color: #ffffff !important;
+    border-radius: 9999px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+}
+
+/* Pillar Card Status Badges */
+.badge.bg-success-subtle {
+    background-color: rgba(98, 250, 227, 0.18) !important;
+    color: #007165 !important;
+    border-color: rgba(0, 113, 101, 0.25) !important;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.08em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.375rem;
+}
+
+/* Checklist Row Verified Badges */
+.table td .badge.bg-success {
+    background-color: #dcfce7 !important;
+    color: #166534 !important;
+    border: 1px solid #bbf7d0;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    padding: 0.3rem 0.65rem;
+}

@@ -319,7 +319,7 @@
         {
             permissions = await Http.GetFromJsonAsync<List<PermissionDto>>("api/permission") ?? new();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Permission endpoint may return empty or error if table is fresh
             permissions = new();

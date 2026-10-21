@@ -1,6 +1,5 @@
 @page "/register"
 @layout PublicLayout
-@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @attribute [AllowAnonymous]
 @using System.Net.Http.Json
 @using HexShield.Client.Services
@@ -95,7 +94,32 @@
                 try
                 {
                     using var doc = System.Text.Json.JsonDocument.Parse(responseBody);
-                    if (doc.RootElement.TryGetProperty("message", out var msgProp))
+                    if (doc.RootElement.TryGetProperty("errors", out var errorsProp) && errorsProp.ValueKind == System.Text.Json.JsonValueKind.Object)
+                    {
+                        var errList = new List<string>();
+                        foreach (var prop in errorsProp.EnumerateObject())
+                        {
+                            if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.Array)
+                            {
+                                foreach (var err in prop.Value.EnumerateArray())
+                                {
+                                    var val = err.GetString();
+                                    if (!string.IsNullOrWhiteSpace(val)) errList.Add(val);
+                                }
+                            }
+                            else
+                            {
+                                var val = prop.Value.GetString();
+                                if (!string.IsNullOrWhiteSpace(val)) errList.Add(val);
+                            }
+                        }
+                        errorMessage = errList.Count > 0 ? string.Join(" ", errList) : "Validation failed.";
+                    }
+                    else if (doc.RootElement.TryGetProperty("detail", out var detailProp))
+                    {
+                        errorMessage = detailProp.GetString();
+                    }
+                    else if (doc.RootElement.TryGetProperty("message", out var msgProp))
                     {
                         errorMessage = msgProp.GetString();
                     }
@@ -134,15 +158,15 @@
             var roles = result.Roles ?? Enumerable.Empty<string>();
             if (roles.Any(r => string.Equals(r, LmsRoles.Admin, StringComparison.OrdinalIgnoreCase)))
             {
-                Navigation.NavigateTo("/admin", forceLoad: true);
+                Navigation.NavigateTo("/admin");
             }
             else if (roles.Any(r => string.Equals(r, LmsRoles.Teacher, StringComparison.OrdinalIgnoreCase)))
             {
-                Navigation.NavigateTo("/teacher", forceLoad: true);
+                Navigation.NavigateTo("/teacher");
             }
             else
             {
-                Navigation.NavigateTo("/student", forceLoad: true);
+                Navigation.NavigateTo("/student");
             }
         }
         catch (Exception ex)
