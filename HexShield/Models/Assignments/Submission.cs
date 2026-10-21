@@ -1,13 +1,10 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using HexShield.Models.Common;
 using HexShield.Models.Identity;
+using HexShield.Shared.Enums;
+
 namespace HexShield.Models.Academic;
-public enum SubmissionStatus
-{
-    Submitted = 1,
-    Graded = 2,
-    Returned = 3
-}
+
 public class Submission : BaseEntity, IMultiTenant
 {
     public int TenantId { get; set; }

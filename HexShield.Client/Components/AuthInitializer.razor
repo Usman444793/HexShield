@@ -1,9 +1,6 @@
 @using Microsoft.AspNetCore.Components.Authorization
+@using HexShield.Client.Services
 @inject AuthenticationStateProvider AuthStateProvider
-
-@* AuthInitializer ensures the client authentication state provider is initialized
-   from browser storage (localStorage) after the Blazor app has rendered. It can
-   optionally render child content so it can wrap other parts of the app. *@
 
 @if (ChildContent is not null)
 {
@@ -21,19 +18,9 @@
 
         try
         {
-            if (AuthStateProvider is not null)
+            if (AuthStateProvider is CustomAuthenticationStateProvider customProvider)
             {
-                // Some authentication state providers (WASM client) expose
-                // InitializeFromStorageAsync(). Call it via reflection when present.
-                var method = AuthStateProvider.GetType().GetMethod("InitializeFromStorageAsync");
-                if (method != null)
-                {
-                    var result = method.Invoke(AuthStateProvider, null);
-                    if (result is Task task)
-                    {
-                        await task;
-                    }
-                }
+                await customProvider.InitializeFromStorageAsync();
             }
         }
         catch

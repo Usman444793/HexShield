@@ -1,7 +1,10 @@
-﻿@page "/admin/courses/{CourseId:int}/assignments"
+@page "/admin/courses/{CourseId:int}/assignments"
 @page "/teacher/courses/{CourseId:int}/assignments"
+@attribute [Authorize(Roles = "Admin,Teacher")]
+@layout AdminLayout
 @using System.Net.Http.Json
-@using HexShield.Models.DTOs
+@using HexShield.Shared.DTOs
+@using HexShield.Shared.Enums
 @inject HttpClient Http
 
 <PageTitle>Assignments - HexShield</PageTitle>
@@ -9,6 +12,9 @@
 <div class="assignments-container">
     <div class="page-header">
         <div>
+            <div class="breadcrumb mb-2">
+                <a href="/admin/courses"><i class="fa-solid fa-arrow-left"></i> Back to Courses</a>
+            </div>
             <h1 class="page-title">Course #@CourseId - Assignments</h1>
             <p class="page-subtitle">Manage assignments, track student submissions, and submit grades.</p>
         </div>
@@ -160,21 +166,46 @@
     {
         if (string.IsNullOrWhiteSpace(newTitle)) return;
 
-        var dto = new CreateAssignmentRequestDto(CourseId, null, newTitle, newDescription, newDueDate, newMaxScore);
-        var response = await Http.PostAsJsonAsync("api/assignments", dto);
-        if (response.IsSuccessStatusCode)
+        try
         {
-            isDrawerOpen = false;
-            await LoadAssignments();
+            var dto = new CreateAssignmentRequestDto(CourseId, null, newTitle.Trim(), newDescription?.Trim(), newDueDate, newMaxScore);
+            var response = await Http.PostAsJsonAsync("api/assignments", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                isDrawerOpen = false;
+                statusMessage = "Assignment created successfully.";
+                isError = false;
+                await LoadAssignments();
+            }
+            else
+            {
+                statusMessage = "Failed to create assignment.";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            isError = true;
         }
     }
 
     private async Task DeleteAssignment(int id)
     {
-        var response = await Http.DeleteAsync($"api/assignments/{id}");
-        if (response.IsSuccessStatusCode)
+        try
         {
-            await LoadAssignments();
+            var response = await Http.DeleteAsync($"api/assignments/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = "Assignment deleted.";
+                isError = false;
+                await LoadAssignments();
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            isError = true;
         }
     }
 

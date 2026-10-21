@@ -3,7 +3,7 @@ using HexShield.Infrastructure.Tenancy;
 using HexShield.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
-using HexShield.Models.DTOs;
+using HexShield.Shared.DTOs;
 
 namespace HexShield.Controllers;
 
@@ -12,23 +12,25 @@ public class AuthController : ApiControllerBase
 {
     private readonly IAuthService _authService;
     private readonly ITenantContext _tenantContext;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, ITenantContext tenantContext)
+    public AuthController(IAuthService authService, ITenantContext tenantContext, ILogger<AuthController> logger)
     {
         _authService = authService;
         _tenantContext = tenantContext;
+        _logger = logger;
     }
 
     [HttpPost("register")]
     [AllowAnonymous]
     public async Task<ActionResult<AuthResponseDto>> Register([FromBody] RegisterRequestDto request)
     {
-        // If TenantId was not explicitly passed in body, inherit from resolved tenant middleware
-        var effectiveRequest = request.TenantId.HasValue || !_tenantContext.HasTenant
-            ? request
-            : request with { TenantId = _tenantContext.TenantId };
+        if (!request.TenantId.HasValue && _tenantContext.HasTenant)
+        {
+            request.TenantId = _tenantContext.TenantId;
+        }
 
-        var response = await _authService.RegisterAsync(effectiveRequest, GetClientIpAddress());
+        var response = await _authService.RegisterAsync(request, GetClientIpAddress());
         SetRefreshTokenCookie(response.RefreshToken);
         return Ok(response);
     }
@@ -37,29 +39,19 @@ public class AuthController : ApiControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginRequestDto request)
     {
-        Console.WriteLine($"[AUTH] Login request received for: {request.Email}");
+        _logger.LogInformation("Login attempt for email: {Email}", request.Email);
         try 
         {
             var response = await _authService.LoginAsync(request, GetClientIpAddress());
             SetRefreshTokenCookie(response.RefreshToken);
-            Console.WriteLine($"[AUTH] Login successful for: {request.Email}");
+            _logger.LogInformation("Login successful for email: {Email}", request.Email);
             return Ok(response);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[AUTH] Login failed for {request.Email}: {ex.Message}");
+            _logger.LogWarning("Login failed for {Email}: {Message}", request.Email, ex.Message);
             throw;
         }
-    }
-
-    [HttpGet("debug-user")]
-    [AllowAnonymous]
-    public async Task<IActionResult> DebugUser(string email)
-    {
-        Console.WriteLine($"[DEBUG] Checking existence of user: {email}");
-        // This is a temporary endpoint to verify DB seeding
-        var user = await _authService.LoginAsync(new LoginRequestDto(email, "AdminPassword123!"), "debug-ip");
-        return Ok(new { exists = true, userId = user.UserId });
     }
 
     [HttpPost("refresh-token")]
@@ -95,7 +87,7 @@ public class AuthController : ApiControllerBase
     }
 
     [HttpPost("revoke-token")]
-    [AllowAnonymous] // Allow revoking session even if access token is already expired
+    [AllowAnonymous]
     public async Task<IActionResult> RevokeToken([FromBody] RevokeTokenRequestDto? request)
     {
         var refreshToken = request?.RefreshToken ?? Request.Cookies["refreshToken"];
@@ -111,9 +103,6 @@ public class AuthController : ApiControllerBase
 
     private void SetRefreshTokenCookie(string refreshToken)
     {
-        // Use request scheme to decide cookie security and SameSite.
-        // On HTTPS we use SameSite=None and Secure=true so modern browsers will accept the cookie for cross-site requests.
-        // For HTTP (development) fall back to Lax and Secure=false so the cookie can be set during local testing.
         var isHttps = Request?.IsHttps ?? false;
         var cookieOption = new CookieOptions
         {

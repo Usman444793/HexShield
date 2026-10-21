@@ -62,6 +62,12 @@ public class TenantResolverMiddleware
             }
         }
 
+        // 4. Fallback to default tenant (Id: 1) if no tenant was specified (e.g. single-tenant or default domain)
+        if (!tenantContext.HasTenant)
+        {
+            tenantContext.SetTenant(1, "default");
+        }
+
         await _next(context);
     }
 }

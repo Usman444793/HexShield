@@ -2,8 +2,10 @@
 using HexShield.Models.Academic;
 using HexShield.Models.Common;
 namespace HexShield.Models.Progress;
-public class LessonProgress : BaseEntity
+public class LessonProgress : BaseEntity,IMultiTenant
 {
+    public int TenantId { get; set; }
+    public Tenant Tenant { get; set; } = null!;
     [Required]
     public int StudentProfileId { get; set; }
     public StudentProfile StudentProfile { get; set; } = null!;

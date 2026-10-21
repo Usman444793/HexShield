@@ -1,5 +1,7 @@
-﻿using HexShield.Models.DTOs.Assignment;
+using HexShield.Shared.DTOs;
+
 namespace HexShield.Services;
+
 public interface IAssignmentService
 {
     Task<IEnumerable<AssignmentListDto>> GetAssignmentsByCourseAsync(int courseId);

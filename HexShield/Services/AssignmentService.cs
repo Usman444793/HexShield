@@ -1,15 +1,19 @@
-﻿using HexShield.Data;
+using HexShield.Data;
 using HexShield.Infrastructure.Tenancy;
 using HexShield.Models.Academic;
-using HexShield.Models.DTOs.Assignment;
+using HexShield.Shared.DTOs;
+using HexShield.Shared.Enums;
 using Microsoft.EntityFrameworkCore;
+
 namespace HexShield.Services;
+
 public class AssignmentService : IAssignmentService
 {
     private readonly ApplicationDbContext _context;
-    private readonly TenantContext _tenantContext;
-    private ILogger<AssignmentService> _logger;
-    public AssignmentService(ApplicationDbContext context,TenantContext tenantContext,ILogger<AssignmentService> logger)
+    private readonly ITenantContext _tenantContext;
+    private readonly ILogger<AssignmentService> _logger;
+
+    public AssignmentService(ApplicationDbContext context, ITenantContext tenantContext, ILogger<AssignmentService> logger)
     {
         _context = context;
         _tenantContext = tenantContext;

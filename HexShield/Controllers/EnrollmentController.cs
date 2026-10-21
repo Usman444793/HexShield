@@ -1,4 +1,5 @@
-﻿using HexShield.Models.DTOs.Enrollments;
+using HexShield.Shared.DTOs;
+using HexShield.Shared.Enums;
 using HexShield.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,10 +7,13 @@ using System.Security.Claims;
 
 namespace HexShield.Controllers;
 
+/// <summary>
+/// Enrollment management. Accessible via /api/enrollments.
+/// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/enrollments")]
 [Authorize]
-public class EnrollmentsController : ControllerBase
+public class EnrollmentsController : ApiControllerBase
 {
     private readonly IEnrollmentService _enrollmentService;
 
@@ -21,6 +25,7 @@ public class EnrollmentsController : ControllerBase
     private string CurrentUserId => User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "system-user";
 
     [HttpGet("course/{courseId:int}")]
+    [HttpGet("/api/courses/{courseId:int}/enrollments")]
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<ActionResult<IEnumerable<EnrollmentListDto>>> GetByCourse(int courseId)
     {
@@ -36,9 +41,14 @@ public class EnrollmentsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Teacher")]
-    public async Task<ActionResult<EnrollmentListDto>> EnrollStudent([FromBody] CreateEnrollmentRequestDto dto)
+    [HttpPost("/api/courses/{courseId:int}/enrollments")]
+    [Authorize(Roles = "Admin,Teacher,Student")]
+    public async Task<ActionResult<EnrollmentListDto>> EnrollStudent([FromBody] CreateEnrollmentRequestDto dto, [FromRoute] int? courseId = null)
     {
+        if (courseId.HasValue && courseId.Value > 0 && dto.CourseId == 0)
+        {
+            dto = dto with { CourseId = courseId.Value };
+        }
         try
         {
             var enrollment = await _enrollmentService.EnrollStudentAsync(dto, CurrentUserId);

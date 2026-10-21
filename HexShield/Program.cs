@@ -21,9 +21,13 @@ using Microsoft.IdentityModel.Tokens;
 using System.IO.Compression;
 using System.Text;
 using System.Threading.RateLimiting;
+
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Database Configuration ───────────────────────────────────────────────────
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Default Connection not found");
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseSqlServer(connectionString, sqlOptions =>
@@ -34,13 +38,15 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
             errorNumbersToAdd: null);
         sqlOptions.CommandTimeout(30);
     });
-    options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+    // Standard tracking enabled for reliable entity updates and concurrency tokens (RowVersion)
     if (builder.Environment.IsDevelopment())
     {
         options.EnableSensitiveDataLogging();
         options.EnableDetailedErrors();
     }
 });
+
+// ── Identity Configuration ───────────────────────────────────────────────────
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 {
     options.Password.RequiredLength = 12;
@@ -53,11 +59,15 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.User.RequireUniqueEmail = false;
 })
-.AddEntityFrameworkStores<ApplicationDbContext>().AddDefaultTokenProviders();
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddDefaultTokenProviders();
+
+// ── JWT Authentication ────────────────────────────────────────────────────────
 var jwtSecret = builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("Jwt:SecretKey was not configured");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer was not configured");
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Audience was not configured");
 var keybytes = Encoding.UTF8.GetBytes(jwtSecret);
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -67,7 +77,6 @@ builder.Services.AddAuthentication(options =>
 {
     options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     options.SaveToken = false;
-    // Add events for detailed logging during development to diagnose token validation failures
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = ctx =>
@@ -108,14 +117,18 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.FromSeconds(30)
     };
 });
+
+// ── Authorization Policies ───────────────────────────────────────────────────
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("Authenticated", policy => policy.RequireAuthenticatedUser())
-    .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
-    .AddPolicy("TeacherOnly", policy => policy.RequireRole("Teacher"))
-    .AddPolicy("StudentOnly", policy => policy.RequireRole("Student"))
-    .AddPolicy("AdminOrTeacher", policy => policy.RequireRole("Admin", "Teacher"));
+    .AddPolicy("AdminOnly", policy => policy.RequireRole(HexShield.Shared.Enums.LmsRoles.Admin))
+    .AddPolicy("TeacherOnly", policy => policy.RequireRole(HexShield.Shared.Enums.LmsRoles.Teacher))
+    .AddPolicy("StudentOnly", policy => policy.RequireRole(HexShield.Shared.Enums.LmsRoles.Student))
+    .AddPolicy("AdminOrTeacher", policy => policy.RequireRole(HexShield.Shared.Enums.LmsRoles.Admin, HexShield.Shared.Enums.LmsRoles.Teacher));
+
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpClient();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped(sp =>
 {
     var httpContext = sp.GetRequiredService<IHttpContextAccessor>().HttpContext;
@@ -123,15 +136,26 @@ builder.Services.AddScoped(sp =>
     {
         return new HttpClient { BaseAddress = new Uri($"{httpContext.Request.Scheme}://{httpContext.Request.Host}/") };
     }
-    // Fallback to a reasonable default if no context is available
     return new HttpClient { BaseAddress = new Uri("http://localhost:5282/") };
 });
-// Do not register the client-side CustomAuthenticationStateProvider on the server.
-// The WASM client registers its own provider (HexShield.Client.Program.cs) and
-// the server should not attempt to resolve client-only services such as ITokenStorage.
+
+// ── Application & Domain Services ─────────────────────────────────────────────
+builder.Services.AddScoped<ITenantContext, TenantContext>();
+builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IOrganizationService, OrganizationService>();
+builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<ILessonService, LessonService>();
+builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
+builder.Services.AddScoped<IAssignmentService, AssignmentService>();
+builder.Services.AddScoped<IQuizService, QuizService>();
+builder.Services.AddScoped<IProgressAndAttendanceService, ProgressAndAttendanceService>();
+
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
+
+// ── Diagnostics & Security ────────────────────────────────────────────────────
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddRateLimiter(options =>
@@ -140,7 +164,7 @@ builder.Services.AddRateLimiter(options =>
     options.AddFixedWindowLimiter("AuthPolicy", opt =>
     {
         opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 5;
+        opt.PermitLimit = 10;
         opt.QueueLimit = 0;
     });
     options.AddPolicy("ApiPolicy", httpContext =>
@@ -153,6 +177,7 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 10
             }));
 });
+
 builder.Services.AddDataProtection().SetApplicationName("HexShield").PersistKeysToDbContext<ApplicationDbContext>(); 
 builder.Services.AddResponseCompression(options =>
 {
@@ -169,20 +194,16 @@ builder.Services.AddOutputCache(options =>
 {
     options.AddBasePolicy(b => b.Expire(TimeSpan.FromMinutes(5)));
 });
+
 builder.Services.AddControllers();
-builder.Services.AddScoped<ITenantContext, TenantContext>();
-builder.Services.AddScoped<IJwtService, JwtService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IAdminService, AdminService>();
-builder.Services.AddScoped<IOrganizationService, OrganizationService>();
-builder.Services.AddScoped<ICourseService, CourseService>();
-builder.Services.AddRazorComponents().AddInteractiveServerComponents().AddInteractiveWebAssemblyComponents();
-builder.Services.AddHttpContextAccessor();
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents()
+    .AddInteractiveWebAssemblyComponents();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DefaultAllowLocalDebug", policy =>
     {
-        // Allow the localhost origins used by the dev server and the WASM client and allow credentials
         policy.WithOrigins("https://localhost:7263", "http://localhost:5282")
             .AllowAnyHeader()
             .AllowAnyMethod()
@@ -190,6 +211,7 @@ builder.Services.AddCors(options =>
     });
 });
 builder.Services.AddAntiforgery();
+
 if (!builder.Environment.IsDevelopment())
 {
     builder.Services.AddHsts(options =>
@@ -199,9 +221,13 @@ if (!builder.Environment.IsDevelopment())
         options.Preload = true;
     });
 }
+
 var app = builder.Build();
+
+// ── HTTP Request Pipeline ─────────────────────────────────────────────────────
 app.UseExceptionHandler();
 app.UseMiddleware<ConcurrencyExceptionMiddleware>();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseWebAssemblyDebugging();
@@ -210,70 +236,42 @@ else
 {
     app.UseHsts();
 }
+
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseResponseCompression();
 }
 
-// Serve Blazor WebAssembly static files and regular static files so _framework modules
-// (dotnet.*) are served with the correct MIME types. This is required for interactive
-// WebAssembly render mode to load client-side runtime assets.
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
-// Preserve any existing custom static asset mapping. Only map when manifest exists.
-// MapStaticAssets requires a generated manifest file. Skip the unconditional
-// call here and map only when the manifest is present to avoid startup errors
-// when Static Web Assets are not generated (e.g., during development builds
-// where we disabled StaticWebAssets or haven't published the client).
-var staticAssetsManifestPath = Path.Combine(AppContext.BaseDirectory, "HexShield.staticwebassets.endpoints.json");
 
-// Routing must be registered before authentication/authorization and endpoint mapping
 app.UseRouting();
 app.UseCors("DefaultAllowLocalDebug");
 
-// Cross-cutting middleware
 app.UseRateLimiter();
 app.UseOutputCache();
 
-// Tenant resolution should run before authentication so auth handlers can consider tenant context
-app.UseMiddleware<TenantResolverMiddleware>();
-
-// Authentication & Authorization must be between UseRouting and UseEndpoints
-app.UseCors("DefaultAllowLocalDebug");
 app.UseAuthentication();
+app.UseMiddleware<TenantResolverMiddleware>();
 app.UseAuthorization();
-
 app.UseAntiforgery();
 
-// Use top-level route registrations instead of UseEndpoints to satisfy analyzers
+var staticAssetsManifestPath = Path.Combine(AppContext.BaseDirectory, "HexShield.staticwebassets.endpoints.json");
 if (File.Exists(staticAssetsManifestPath))
 {
     app.MapStaticAssets(staticAssetsManifestPath);
 }
-else
-{
-    var logger = app.Services.GetService<ILogger<Program>>();
-    logger?.LogWarning("Static web assets manifest not found, skipping MapStaticAssets: {Path}", staticAssetsManifestPath);
-}
 
 app.MapControllers().RequireRateLimiting("ApiPolicy");
 
-// Enable both server and WebAssembly interactive render modes. Some components use
-// InteractiveAutoRenderMode and require server endpoints to be mapped.
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(HexShield.Client._Imports).Assembly);
-await DbInitializer.InitializeAsync(app.Services);
-// Serve the Blazor client app for non-API routes so client-side routing can handle protected UI paths.
-// This ensures requests like /admin return the SPA shell (which can attach the JWT from localStorage)
-// instead of the server returning 401 for a document request that cannot read localStorage.
-app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
 
-// Fallback to index.html for routes that are not API endpoints or static files
-app.MapFallbackToFile("index.html");
+await DbInitializer.InitializeAsync(app.Services);
 
 app.Run();

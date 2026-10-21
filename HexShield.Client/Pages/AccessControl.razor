@@ -1,0 +1,466 @@
+@page "/admin/access-control"
+@layout AdminLayout
+@attribute [Authorize(Policy = "AdminOnly")]
+@using HexShield.Shared.DTOs
+@using HexShield.Shared.Enums
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Access Control & RBAC | HexShield Admin</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <div class="text-muted small mb-1">
+                <a href="/admin" class="text-decoration-none text-muted"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+            </div>
+            <h2 class="fw-bold mb-1">Access Control & Roles</h2>
+            <p class="text-muted mb-0">Enforce Role-Based Access Control (RBAC), manage role assignments, and govern system permissions.</p>
+        </div>
+        <button class="btn btn-outline-secondary" @onclick="RefreshDataAsync">
+            <i class="fa-solid fa-arrows-rotate me-1"></i> Refresh
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show" role="alert">
+            <span>@statusMessage</span>
+            <button type="button" class="btn-close" @onclick="() => statusMessage = null"></button>
+        </div>
+    }
+
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == "roles" ? "active fw-bold text-dark" : "text-muted")" @onclick='() => activeTab = "roles"'>
+                <i class="fa-solid fa-users-gear me-1"></i> User Role Assignments
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == "permissions" ? "active fw-bold text-dark" : "text-muted")" @onclick='() => activeTab = "permissions"'>
+                <i class="fa-solid fa-shield-halved me-1"></i> System Permissions
+            </button>
+        </li>
+    </ul>
+
+    @if (activeTab == "roles")
+    {
+        <div class="card shadow-sm border-0 rounded-3">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0">User Directory & Assigned Roles</h5>
+                <div class="text-muted small">Assigned roles dictate client UI visibility and server-side policy enforcement.</div>
+            </div>
+            <div class="card-body p-0">
+                @if (isLoadingUsers)
+                {
+                    <div class="p-5 text-center text-muted">
+                        <i class="fa-solid fa-spinner fa-spin fa-2x mb-3"></i>
+                        <p class="mb-0">Loading user role mappings...</p>
+                    </div>
+                }
+                else if (users == null || !users.Any())
+                {
+                    <div class="p-5 text-center text-muted">
+                        <p class="mb-0">No users found.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">User</th>
+                                    <th>Email</th>
+                                    <th>Current Roles</th>
+                                    <th>Status</th>
+                                    <th class="text-end pe-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var user in users)
+                                {
+                                    <tr>
+                                        <td class="ps-4">
+                                            <div class="fw-bold text-dark">@user.FullName</div>
+                                            <div class="text-muted small">ID: @user.Id</div>
+                                        </td>
+                                        <td>@user.Email</td>
+                                        <td>
+                                            @if (user.Roles != null && user.Roles.Any())
+                                            {
+                                                @foreach (var role in user.Roles)
+                                                {
+                                                    <span class="badge @GetRoleBadgeClass(role) me-1">@role</span>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-light text-muted border">No Roles</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge @(user.IsActive ? "bg-success" : "bg-danger")">
+                                                @(user.IsActive ? "Active" : "Inactive")
+                                            </span>
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenRoleModal(user)">
+                                                <i class="fa-solid fa-user-pen me-1"></i> Manage Roles
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm border-0 rounded-3">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0">Fine-Grained System Permissions</h5>
+                <button class="btn btn-sm btn-primary" style="background: #0b3948; border-color: #0b3948;" @onclick="() => isPermissionModalOpen = true">
+                    <i class="fa-solid fa-plus me-1"></i> Add Permission
+                </button>
+            </div>
+            <div class="card-body p-0">
+                @if (isLoadingPermissions)
+                {
+                    <div class="p-5 text-center text-muted">
+                        <i class="fa-solid fa-spinner fa-spin fa-2x mb-3"></i>
+                        <p class="mb-0">Loading permissions...</p>
+                    </div>
+                }
+                else if (permissions == null || !permissions.Any())
+                {
+                    <div class="p-5 text-center text-muted">
+                        <p class="mb-0">No permissions registered yet.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">ID</th>
+                                    <th>Permission Name</th>
+                                    <th>Description</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var p in permissions)
+                                {
+                                    <tr>
+                                        <td class="ps-4 fw-bold text-muted">#@p.Id</td>
+                                        <td>
+                                            <code class="px-2 py-1 bg-light rounded text-primary fw-bold">@p.Name</code>
+                                        </td>
+                                        <td>@p.Description</td>
+                                        <td>
+                                            <span class="badge @(p.IsSystemPermission ? "bg-secondary" : "bg-info text-dark")">
+                                                @(p.IsSystemPermission ? "System" : "Custom")
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@if (isRoleModalOpen && selectedUser != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Manage Roles: @selectedUser.FullName</h5>
+                    <button type="button" class="btn-close" @onclick="() => isRoleModalOpen = false"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Toggle application roles for <strong>@selectedUser.Email</strong>.</p>
+                    
+                    <div class="list-group">
+                        @foreach (var role in availableRoles)
+                        {
+                            var hasRole = selectedUser.Roles?.Contains(role, StringComparer.OrdinalIgnoreCase) == true;
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="badge @GetRoleBadgeClass(role) me-2">@role</span>
+                                    <span class="small text-muted">@GetRoleDescription(role)</span>
+                                </div>
+                                <div>
+                                    @if (hasRole)
+                                    {
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveRoleAsync(role)" disabled="@isUpdatingRole">
+                                            <i class="fa-solid fa-trash me-1"></i> Remove
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-success" @onclick="() => AssignRoleAsync(role)" disabled="@isUpdatingRole">
+                                            <i class="fa-solid fa-plus me-1"></i> Assign
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="() => isRoleModalOpen = false">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (isPermissionModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Create System Permission</h5>
+                    <button type="button" class="btn-close" @onclick="() => isPermissionModalOpen = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Permission Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" placeholder="e.g. Courses.Publish" @bind="newPermName" />
+                        <div class="form-text">Follow Module.Action naming convention.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Description</label>
+                        <input type="text" class="form-control" placeholder="Allows publishing course curriculum" @bind="newPermDesc" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" @onclick="() => isPermissionModalOpen = false">Cancel</button>
+                    <button type="button" class="btn btn-primary" style="background: #0b3948; border-color: #0b3948;" @onclick="CreatePermissionAsync" disabled="@isSavingPerm">
+                        @(isSavingPerm ? "Creating..." : "Create Permission")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string activeTab = "roles";
+    private List<UserListDto>? users;
+    private List<PermissionDto>? permissions;
+    private bool isLoadingUsers = true;
+    private bool isLoadingPermissions = true;
+    private bool isRoleModalOpen = false;
+    private bool isPermissionModalOpen = false;
+    private bool isUpdatingRole = false;
+    private bool isSavingPerm = false;
+    private UserListDto? selectedUser;
+    private string? statusMessage;
+    private bool isError = false;
+
+    private string newPermName = string.Empty;
+    private string newPermDesc = string.Empty;
+
+    private readonly string[] availableRoles = new[] { LmsRoles.Admin, LmsRoles.Teacher, LmsRoles.Student };
+
+    private class PermissionDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public bool IsSystemPermission { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshDataAsync();
+    }
+
+    private async Task RefreshDataAsync()
+    {
+        await LoadUsersAsync();
+        await LoadPermissionsAsync();
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        isLoadingUsers = true;
+        try
+        {
+            users = await Http.GetFromJsonAsync<List<UserListDto>>("api/admin/users") ?? new();
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Failed to load users: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isLoadingUsers = false;
+        }
+    }
+
+    private async Task LoadPermissionsAsync()
+    {
+        isLoadingPermissions = true;
+        try
+        {
+            permissions = await Http.GetFromJsonAsync<List<PermissionDto>>("api/permission") ?? new();
+        }
+        catch (Exception ex)
+        {
+            // Permission endpoint may return empty or error if table is fresh
+            permissions = new();
+        }
+        finally
+        {
+            isLoadingPermissions = false;
+        }
+    }
+
+    private void OpenRoleModal(UserListDto user)
+    {
+        selectedUser = user;
+        isRoleModalOpen = true;
+    }
+
+    private async Task AssignRoleAsync(string roleName)
+    {
+        if (selectedUser == null) return;
+        isUpdatingRole = true;
+        try
+        {
+            var dto = new AssignRoleDto(roleName);
+            var response = await Http.PostAsJsonAsync($"api/admin/users/{selectedUser.Id}/roles", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = $"Role '{roleName}' assigned to {selectedUser.FullName}.";
+                isError = false;
+                await LoadUsersAsync();
+                selectedUser = users?.FirstOrDefault(u => u.Id == selectedUser.Id);
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                statusMessage = $"Failed to assign role: {err}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isUpdatingRole = false;
+        }
+    }
+
+    private async Task RemoveRoleAsync(string roleName)
+    {
+        if (selectedUser == null) return;
+        isUpdatingRole = true;
+        try
+        {
+            var response = await Http.DeleteAsync($"api/admin/users/{selectedUser.Id}/roles/{roleName}");
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = $"Role '{roleName}' removed from {selectedUser.FullName}.";
+                isError = false;
+                await LoadUsersAsync();
+                selectedUser = users?.FirstOrDefault(u => u.Id == selectedUser.Id);
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                statusMessage = $"Failed to remove role: {err}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isUpdatingRole = false;
+        }
+    }
+
+    private async Task CreatePermissionAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newPermName))
+        {
+            statusMessage = "Permission Name is required.";
+            isError = true;
+            return;
+        }
+
+        isSavingPerm = true;
+        try
+        {
+            var payload = new
+            {
+                Name = newPermName.Trim(),
+                Description = newPermDesc.Trim(),
+                IsSystemPermission = false
+            };
+
+            var response = await Http.PostAsJsonAsync("api/permission", payload);
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = $"Permission '{newPermName}' created.";
+                isError = false;
+                newPermName = string.Empty;
+                newPermDesc = string.Empty;
+                isPermissionModalOpen = false;
+                await LoadPermissionsAsync();
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                statusMessage = $"Failed to create permission: {err}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSavingPerm = false;
+        }
+    }
+
+    private string GetRoleBadgeClass(string role) => role switch
+    {
+        "Admin" => "bg-danger",
+        "Teacher" => "bg-primary",
+        "Student" => "bg-success",
+        _ => "bg-secondary"
+    };
+
+    private string GetRoleDescription(string role) => role switch
+    {
+        "Admin" => "Full platform governance, tenant config, user lifecycle & system security",
+        "Teacher" => "Curriculum creation, lesson publishing, grading assignments & marking attendance",
+        "Student" => "Enrolling in courses, reading lessons, taking quizzes & submitting assignments",
+        _ => "Standard access"
+    };
+}

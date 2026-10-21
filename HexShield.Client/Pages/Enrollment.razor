@@ -1,25 +1,36 @@
-﻿@page "/admin/courses/{CourseId:int}/enrollments"
+@page "/admin/courses/{CourseId:int}/enrollments"
 @page "/teacher/courses/{CourseId:int}/enrollments"
+@attribute [Authorize(Roles = "Admin,Teacher")]
+@layout AdminLayout
 @using System.Net.Http.Json
-@using HexShield.Models.Academic
-@using HexShield.Models.DTOs.Enrollments
+@using HexShield.Shared.DTOs
+@using HexShield.Shared.Enums
 @inject HttpClient Http
+
 <PageTitle>Enrollments - Hex Shield</PageTitle>
+
 <div class="enrollments-container">
     <div class="page-header">
-        <h1 class="page-title">Course #@CourseId - Roster & Access</h1>
-        <p class="page-subtitle">Manage student access, status flags, and enrollments.</p>
+        <div>
+            <div class="breadcrumb mb-2">
+                <a href="/admin/courses"><i class="fa-solid fa-arrow-left"></i> Back to Courses</a>
+            </div>
+            <h1 class="page-title">Course #@CourseId - Roster & Access</h1>
+            <p class="page-subtitle">Manage student access, status flags, and enrollments.</p>
+        </div>
+        <button class="btn-primary" @onclick="() => isEnrollModalOpen = true">
+            <i class="fa-solid fa-user-plus"></i> Enroll Student
+        </button>
     </div>
-    <button class="btn-primary" @onclick="() => isEnrollModalOpen = true">
-        <i class="fa-solid fa-user-plus"></i> Enroll
-    </button>
-    @if (string.IsNullOrWhiteSpace(statusMessage))
+
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
     {
         <div class="alert @(isError ? "alert-danger" : "alert-success")">
             <span>@statusMessage</span>
             <button class="alert-close" @onclick="() => statusMessage = null">&times;</button>
-            </div>
+        </div>
     }
+
     <div class="table-card">
         @if (isLoading)
         {
@@ -42,7 +53,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach(var item in enrollments)
+                    @foreach (var item in enrollments)
                     {
                         <tr>
                             <td><strong>@item.StudentName</strong></td>
@@ -52,8 +63,9 @@
                                 <span class="badge status-@item.Status.ToString().ToLower()">@item.Status</span>
                             </td>
                             <td class="text-right">
-                                <button class="btn-icon btn-danger-icon" @onclick="() => Unenroll(item.Id)">
+                                <button class="btn-icon btn-danger-icon" title="Unenroll" @onclick="() => Unenroll(item.Id)">
                                     <i class="fa-solid fa-user-minus"></i>
+                                </button>
                             </td>
                         </tr>
                     }
@@ -62,22 +74,24 @@
         }
     </div>
 </div>
+
 @if (isEnrollModalOpen)
 {
     <div class="modal-overlay">
         <div class="modal-card">
             <h3>Enroll Student</h3>
             <div class="form-group">
-                <label>Student User Id</label>
-                <input type="text" class="form-group" @bind="newStudentId" placeholder="Enter Student GUID..." />
+                <label>Student User ID (GUID)</label>
+                <input type="text" class="form-control" @bind="newStudentId" placeholder="Enter student user ID..." />
             </div>
             <div class="modal-actions">
                 <button class="btn-secondary" @onclick="() => isEnrollModalOpen = false">Cancel</button>
-                <button class="btn-primary" @onclick="() => SubmitEnrollment">Enroll</button>
+                <button class="btn-primary" @onclick="SubmitEnrollment">Enroll</button>
             </div>
         </div>
     </div>
 }
+
 @code {
     [Parameter] public int CourseId { get; set; }
     private List<EnrollmentListDto> enrollments = new();
@@ -86,18 +100,20 @@
     private string newStudentId = string.Empty;
     private string? statusMessage;
     private bool isError;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadEnrollments();
     }
+
     private async Task LoadEnrollments()
     {
         isLoading = true;
         try
         {
-            enrollments = await Http.GetFromJsonAsync<List<EnrollmentListDto>>($"api/enrollments/courses/{CourseId}") ?? new();
+            enrollments = await Http.GetFromJsonAsync<List<EnrollmentListDto>>($"api/enrollments/course/{CourseId}") ?? new();
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             statusMessage = ex.Message;
             isError = true;
@@ -107,23 +123,56 @@
             isLoading = false;
         }
     }
+
     private async Task SubmitEnrollment()
     {
         if (string.IsNullOrWhiteSpace(newStudentId)) return;
-        var response = await Http.PostAsJsonAsync("api/enrollments", new CreateEnrollmentRequestDto(CourseId, newStudentId));
-        if (response.IsSuccessStatusCode)
+        try
         {
-            isEnrollModalOpen = false;
-            newStudentId = string.Empty;
-            await LoadEnrollments();
+            var response = await Http.PostAsJsonAsync("api/enrollments", new CreateEnrollmentRequestDto(CourseId, newStudentId.Trim()));
+            if (response.IsSuccessStatusCode)
+            {
+                isEnrollModalOpen = false;
+                newStudentId = string.Empty;
+                statusMessage = "Student enrolled successfully.";
+                isError = false;
+                await LoadEnrollments();
+            }
+            else
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                statusMessage = $"Failed to enroll: {body}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            isError = true;
         }
     }
+
     private async Task Unenroll(int id)
     {
-        var response = await Http.DeleteAsync($"api/enrollments/{id}");
-        if (response.IsSuccessStatusCode)
+        try
         {
-            await LoadEnrollments();
+            var response = await Http.DeleteAsync($"api/enrollments/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = "Student unenrolled.";
+                isError = false;
+                await LoadEnrollments();
+            }
+            else
+            {
+                statusMessage = "Failed to unenroll student.";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            isError = true;
         }
     }
 }

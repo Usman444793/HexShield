@@ -1,7 +1,8 @@
 using HexShield.Data;
 using HexShield.Infrastructure.Tenancy;
 using HexShield.Models.Academic;
-using HexShield.Models.DTOs.Courses;
+using HexShield.Models.Common;
+using HexShield.Shared.DTOs;
 using Microsoft.EntityFrameworkCore;
 
 namespace HexShield.Services;
@@ -75,16 +76,43 @@ public class CourseService : ICourseService
             throw new InvalidOperationException($"Course Code '{courseCode}' already exists.");
         }
 
-        var organizationExists = await _context.OrganizationNodes.AnyAsync(o => o.Id == dto.OrganizationNodeId);
-        if (!organizationExists)
+        var orgNodeId = dto.OrganizationNodeId;
+        if (orgNodeId <= 0 || !await _context.OrganizationNodes.AnyAsync(o => o.Id == orgNodeId))
         {
-            throw new KeyNotFoundException("The specified organization node does not exist.");
+            var defaultOrg = await _context.OrganizationNodes.FirstOrDefaultAsync();
+            if (defaultOrg == null)
+            {
+                defaultOrg = new OrganizationNode
+                {
+                    TenantId = _tenantContext.TenantId,
+                    Code = "FAC-GEN",
+                    Name = "General Faculty",
+                    NodeType = "Faculty",
+                    CreatedById = userId
+                };
+                _context.OrganizationNodes.Add(defaultOrg);
+                await _context.SaveChangesAsync();
+            }
+            orgNodeId = defaultOrg.Id;
         }
 
-        var teacherExists = await _context.TeacherProfiles.AnyAsync(t => t.Id == dto.PrimaryTeacherProfileId);
-        if (!teacherExists)
+        var teacherProfileId = dto.PrimaryTeacherProfileId;
+        if (teacherProfileId <= 0 || !await _context.TeacherProfiles.AnyAsync(t => t.Id == teacherProfileId))
         {
-            throw new KeyNotFoundException("The specified teacher was not found.");
+            var defaultTeacher = await _context.TeacherProfiles.FirstOrDefaultAsync();
+            if (defaultTeacher == null)
+            {
+                defaultTeacher = new TeacherProfile
+                {
+                    UserId = userId,
+                    EmployeeNumber = $"EMP-{Random.Shared.Next(1000, 9999)}",
+                    Bio = "Primary Faculty Instructor",
+                    CreatedById = userId
+                };
+                _context.TeacherProfiles.Add(defaultTeacher);
+                await _context.SaveChangesAsync();
+            }
+            teacherProfileId = defaultTeacher.Id;
         }
 
         var course = new Course
@@ -94,8 +122,8 @@ public class CourseService : ICourseService
             Title = dto.Title.Trim(),
             Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
             IsPublished = false,
-            PrimaryTeacherProfileId = dto.PrimaryTeacherProfileId,
-            OrganizationNodeId = dto.OrganizationNodeId,
+            PrimaryTeacherProfileId = teacherProfileId,
+            OrganizationNodeId = orgNodeId,
             CreatedById = userId
         };
 

@@ -280,6 +280,26 @@
     color: #dc2626;
 }
 
+.btn-subaction {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: #0f766e;
+    background-color: #f0fdfa;
+    border: 1px solid #ccfbf1;
+    border-radius: 0.25rem;
+    transition: all 0.15s ease;
+}
+
+.btn-subaction:hover {
+    background-color: #0d9488;
+    color: #ffffff;
+    border-color: #0d9488;
+}
+
 /* Loading & Empty States */
 .loading-state, .empty-state {
     padding: 3rem;

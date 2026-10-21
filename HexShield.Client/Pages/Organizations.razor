@@ -1,0 +1,436 @@
+@page "/admin/organizations"
+@layout AdminLayout
+@attribute [Authorize(Policy = "AdminOnly")]
+@using HexShield.Shared.DTOs
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Organization Hierarchy | HexShield Admin</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <div class="text-muted small mb-1">
+                <a href="/admin" class="text-decoration-none text-muted"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+            </div>
+            <h2 class="fw-bold mb-1">Organization Structure</h2>
+            <p class="text-muted mb-0">Manage institutional hierarchy (Faculties, Departments, Programs) and user node roles.</p>
+        </div>
+        <button class="btn btn-primary" style="background: #0b3948; border-color: #0b3948;" @onclick="OpenCreateModal">
+            <i class="fa-solid fa-plus me-1"></i> Add Organization Node
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show" role="alert">
+            <span>@statusMessage</span>
+            <button type="button" class="btn-close" @onclick="() => statusMessage = null"></button>
+        </div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3">
+                <span class="text-muted small fw-bold">TOTAL NODES</span>
+                <h3 class="fw-bold mt-2 mb-0">@(FlatNodes.Count)</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3">
+                <span class="text-muted small fw-bold">FACULTIES</span>
+                <h3 class="fw-bold mt-2 mb-0">@(FlatNodes.Count(n => n.NodeType == "Faculty"))</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3">
+                <span class="text-muted small fw-bold">DEPARTMENTS</span>
+                <h3 class="fw-bold mt-2 mb-0">@(FlatNodes.Count(n => n.NodeType == "Department"))</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3">
+                <span class="text-muted small fw-bold">PROGRAMS / SECTIONS</span>
+                <h3 class="fw-bold mt-2 mb-0">@(FlatNodes.Count(n => n.NodeType != "Faculty" && n.NodeType != "Department"))</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0">Hierarchy & Nodes</h5>
+            <div class="text-muted small">Multi-tenant institutional hierarchy</div>
+        </div>
+        <div class="card-body p-0">
+            @if (isLoading)
+            {
+                <div class="p-5 text-center text-muted">
+                    <i class="fa-solid fa-spinner fa-spin fa-2x mb-3"></i>
+                    <p class="mb-0">Loading organization hierarchy...</p>
+                </div>
+            }
+            else if (!FlatNodes.Any())
+            {
+                <div class="p-5 text-center text-muted">
+                    <i class="fa-solid fa-sitemap fa-2x mb-3"></i>
+                    <p class="mb-0">No organization nodes created yet. Click "Add Organization Node" above.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">ID</th>
+                                <th>Node Name</th>
+                                <th>Type</th>
+                                <th>Parent Node</th>
+                                <th>Sub-Nodes</th>
+                                <th class="text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var node in FlatNodes)
+                            {
+                                <tr>
+                                    <td class="ps-4 fw-bold text-muted">#@node.Id</td>
+                                    <td>
+                                        <div class="fw-bold text-dark">
+                                            <i class="fa-solid @GetNodeIcon(node.NodeType) me-2 text-primary"></i>
+                                            @node.Name
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge @GetBadgeClass(node.NodeType)">@node.NodeType</span>
+                                    </td>
+                                    <td>
+                                        @(node.ParentId.HasValue ? $"#{node.ParentId} {GetParentName(node.ParentId)}" : "Root Node")
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">
+                                            @(node.Children?.Count() ?? 0) direct
+                                        </span>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <button class="btn btn-sm btn-outline-primary me-1" title="Assign User" @onclick="() => OpenAssignModal(node)">
+                                            <i class="fa-solid fa-user-plus"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" title="Delete" @onclick="() => DeleteNodeAsync(node.Id)">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@if (isModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Add Organization Node</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Node Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" placeholder="e.g. Faculty of Computer Science" @bind="nodeForm.Name" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Node Type <span class="text-danger">*</span></label>
+                        <select class="form-select" @bind="nodeForm.NodeType">
+                            <option value="Faculty">Faculty</option>
+                            <option value="Department">Department</option>
+                            <option value="Program">Program</option>
+                            <option value="Section">Section</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Code / Abbreviation</label>
+                        <input type="text" class="form-control" placeholder="e.g. FCS-01" @bind="nodeForm.Code" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Parent Node</label>
+                        <select class="form-select" @bind="nodeForm.ParentId">
+                            <option value="">None (Top-Level Root Node)</option>
+                            @foreach (var parent in FlatNodes)
+                            {
+                                <option value="@parent.Id">@parent.Name (@parent.NodeType)</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" style="background: #0b3948; border-color: #0b3948;" @onclick="CreateNodeAsync" disabled="@isSaving">
+                        @(isSaving ? "Creating..." : "Create Node")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (isAssignModalOpen && selectedNode != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Assign User to @selectedNode.Name</h5>
+                    <button type="button" class="btn-close" @onclick="() => isAssignModalOpen = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">User ID or Email <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" placeholder="Enter User ID" @bind="assignForm.UserId" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Role in Organization <span class="text-danger">*</span></label>
+                        <select class="form-select" @bind="assignForm.RoleName">
+                            <option value="Dean">Dean / Director</option>
+                            <option value="Chairperson">Department Chair</option>
+                            <option value="Coordinator">Program Coordinator</option>
+                            <option value="Instructor">Faculty Member / Instructor</option>
+                            <option value="Member">General Member</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" @onclick="() => isAssignModalOpen = false">Cancel</button>
+                    <button type="button" class="btn btn-primary" style="background: #0b3948; border-color: #0b3948;" @onclick="AssignUserAsync" disabled="@isSaving">
+                        @(isSaving ? "Assigning..." : "Assign User")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<OrganizationNodeDto> hierarchyNodes = new();
+    private List<OrganizationNodeDto> FlatNodes = new();
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool isModalOpen = false;
+    private bool isAssignModalOpen = false;
+    private OrganizationNodeDto? selectedNode;
+    private string? statusMessage;
+    private bool isError = false;
+
+    private NodeFormModel nodeForm = new();
+    private AssignFormModel assignForm = new();
+
+    private class NodeFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string NodeType { get; set; } = "Faculty";
+        public string? Code { get; set; }
+        public int? ParentId { get; set; }
+    }
+
+    private class AssignFormModel
+    {
+        public string UserId { get; set; } = string.Empty;
+        public string RoleName { get; set; } = "Instructor";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadHierarchyAsync();
+    }
+
+    private async Task LoadHierarchyAsync()
+    {
+        isLoading = true;
+        try
+        {
+            var result = await Http.GetFromJsonAsync<List<OrganizationNodeDto>>("api/admin/organizations");
+            hierarchyNodes = result ?? new();
+
+            FlatNodes = new List<OrganizationNodeDto>();
+            FlattenHierarchy(hierarchyNodes, FlatNodes);
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Failed to load organization hierarchy: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void FlattenHierarchy(IEnumerable<OrganizationNodeDto> nodes, List<OrganizationNodeDto> flatList)
+    {
+        foreach (var node in nodes)
+        {
+            flatList.Add(node);
+            if (node.Children != null && node.Children.Any())
+            {
+                FlattenHierarchy(node.Children, flatList);
+            }
+        }
+    }
+
+    private string GetParentName(int? parentId)
+    {
+        if (!parentId.HasValue) return "Root";
+        var parent = FlatNodes.FirstOrDefault(n => n.Id == parentId.Value);
+        return parent?.Name ?? $"Node #{parentId.Value}";
+    }
+
+    private string GetNodeIcon(string nodeType) => nodeType switch
+    {
+        "Faculty" => "fa-landmark",
+        "Department" => "fa-building-columns",
+        "Program" => "fa-graduation-cap",
+        "Section" => "fa-chalkboard-user",
+        _ => "fa-folder-tree"
+    };
+
+    private string GetBadgeClass(string nodeType) => nodeType switch
+    {
+        "Faculty" => "bg-primary",
+        "Department" => "bg-info text-dark",
+        "Program" => "bg-success",
+        "Section" => "bg-secondary",
+        _ => "bg-dark"
+    };
+
+    private void OpenCreateModal()
+    {
+        nodeForm = new NodeFormModel();
+        isModalOpen = true;
+    }
+
+    private void CloseModal()
+    {
+        isModalOpen = false;
+    }
+
+    private void OpenAssignModal(OrganizationNodeDto node)
+    {
+        selectedNode = node;
+        assignForm = new AssignFormModel();
+        isAssignModalOpen = true;
+    }
+
+    private async Task CreateNodeAsync()
+    {
+        if (string.IsNullOrWhiteSpace(nodeForm.Name))
+        {
+            statusMessage = "Node Name is required.";
+            isError = true;
+            return;
+        }
+
+        isSaving = true;
+        statusMessage = null;
+
+        try
+        {
+            var dto = new CreateOrganizationNodeDto(
+                nodeForm.Name.Trim(),
+                nodeForm.NodeType,
+                nodeForm.ParentId,
+                string.IsNullOrWhiteSpace(nodeForm.Code) ? null : nodeForm.Code.Trim()
+            );
+
+            var response = await Http.PostAsJsonAsync("api/admin/organizations", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = $"Node '{nodeForm.Name}' created successfully.";
+                isError = false;
+                CloseModal();
+                await LoadHierarchyAsync();
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                statusMessage = $"Error creating organization node: {err}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Service error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DeleteNodeAsync(int id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/admin/organizations/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = "Organization node deleted.";
+                isError = false;
+                await LoadHierarchyAsync();
+            }
+            else
+            {
+                statusMessage = "Failed to delete node. Ensure it has no child dependencies.";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private async Task AssignUserAsync()
+    {
+        if (selectedNode == null || string.IsNullOrWhiteSpace(assignForm.UserId))
+        {
+            statusMessage = "User ID is required.";
+            isError = true;
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            var dto = new AssignUserToNodeDto(assignForm.UserId.Trim(), assignForm.RoleName);
+            var response = await Http.PostAsJsonAsync($"api/admin/organizations/{selectedNode.Id}/assign-user", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = "User assigned to organization node successfully.";
+                isError = false;
+                isAssignModalOpen = false;
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                statusMessage = $"Failed to assign user: {err}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Service error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

@@ -1,0 +1,189 @@
+@page "/admin/courses/{CourseId:int}/quizzes"
+@page "/teacher/courses/{CourseId:int}/quizzes"
+@attribute [Authorize(Roles = "Admin,Teacher")]
+@layout AdminLayout
+@using System.Net.Http.Json
+@using HexShield.Shared.DTOs
+@using HexShield.Shared.Enums
+@inject HttpClient Http
+
+<PageTitle>Quizzes - HexShield</PageTitle>
+
+<div class="quizzes-container">
+    <div class="page-header">
+        <div>
+            <div class="breadcrumb mb-2">
+                <a href="/admin/courses"><i class="fa-solid fa-arrow-left"></i> Back to Courses</a>
+            </div>
+            <h1 class="page-title">Course #@CourseId - Quizzes</h1>
+            <p class="page-subtitle">Configure assessments, time limits, and view question sets.</p>
+        </div>
+        <button class="btn-primary" @onclick="() => isModalOpen = true">
+            <i class="fa-solid fa-plus"></i> Create Quiz
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success")">
+            <span>@statusMessage</span>
+            <button class="alert-close" @onclick="() => statusMessage = null">&times;</button>
+        </div>
+    }
+
+    <div class="table-card">
+        @if (isLoading)
+        {
+            <div class="loading-state"><i class="fa-solid fa-spinner fa-spin spinner"></i><p>Loading quizzes...</p></div>
+        }
+        else if (!quizzes.Any())
+        {
+            <div class="empty-state"><h3>No quizzes created for this course.</h3></div>
+        }
+        else
+        {
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Time Limit</th>
+                        <th>Max Attempts</th>
+                        <th>Pass Target</th>
+                        <th>Questions</th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var quiz in quizzes)
+                    {
+                        <tr>
+                            <td><strong>@quiz.Title</strong></td>
+                            <td>@quiz.TimeLimitMinutes mins</td>
+                            <td>@quiz.MaxAttempts</td>
+                            <td>@quiz.PassPercentage%</td>
+                            <td><span class="badge-neutral">@quiz.QuestionCount Questions</span></td>
+                            <td class="text-right">
+                                <button class="btn-icon btn-danger-icon" title="Delete" @onclick="() => DeleteQuiz(quiz.Id)">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@if (isModalOpen)
+{
+    <div class="modal-overlay">
+        <div class="modal-card">
+            <h3>New Quiz Config</h3>
+            <div class="form-group">
+                <label>Title *</label>
+                <input type="text" class="form-control" @bind="newTitle" placeholder="e.g. Chapter 1 Knowledge Check" />
+            </div>
+            <div class="form-group">
+                <label>Time Limit (Minutes)</label>
+                <input type="number" class="form-control" @bind="newTimeLimit" />
+            </div>
+            <div class="form-group">
+                <label>Max Attempts</label>
+                <input type="number" class="form-control" @bind="newMaxAttempts" />
+            </div>
+            <div class="form-group">
+                <label>Pass Percentage Target (%)</label>
+                <input type="number" class="form-control" @bind="newPassPercentage" />
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" @onclick="() => isModalOpen = false">Cancel</button>
+                <button class="btn-primary" @onclick="CreateQuiz">Save Quiz</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int CourseId { get; set; }
+    private List<QuizListDto> quizzes = new();
+    private bool isLoading = true;
+    private bool isModalOpen = false;
+    private string newTitle = string.Empty;
+    private int newTimeLimit = 30;
+    private int newMaxAttempts = 1;
+    private decimal newPassPercentage = 70.0m;
+    private string? statusMessage;
+    private bool isError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadQuizzes();
+    }
+
+    private async Task LoadQuizzes()
+    {
+        isLoading = true;
+        try
+        {
+            quizzes = await Http.GetFromJsonAsync<List<QuizListDto>>($"api/quizzes/course/{CourseId}") ?? new();
+        }
+        catch (Exception ex)
+        {
+            statusMessage = ex.Message;
+            isError = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task CreateQuiz()
+    {
+        if (string.IsNullOrWhiteSpace(newTitle)) return;
+
+        try
+        {
+            var dto = new CreateQuizRequestDto(CourseId, null, newTitle.Trim(), "Default instructions", newTimeLimit, newMaxAttempts, newPassPercentage);
+            var response = await Http.PostAsJsonAsync("api/quizzes", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                isModalOpen = false;
+                newTitle = string.Empty;
+                statusMessage = "Quiz created successfully.";
+                isError = false;
+                await LoadQuizzes();
+            }
+            else
+            {
+                statusMessage = "Failed to create quiz.";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private async Task DeleteQuiz(int id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/quizzes/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = "Quiz deleted successfully.";
+                isError = false;
+                await LoadQuizzes();
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            isError = true;
+        }
+    }
+}

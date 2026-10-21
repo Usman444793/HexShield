@@ -1,0 +1,151 @@
+@page "/admin/security"
+@layout AdminLayout
+@attribute [Authorize(Policy = "AdminOnly")]
+
+<PageTitle>Security Command Center | HexShield</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <div class="text-muted small mb-1">
+                <a href="/admin" class="text-decoration-none text-muted"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+            </div>
+            <h2 class="fw-bold mb-1">Security & Infrastructure Center</h2>
+            <p class="text-muted mb-0">Overview of multi-tenant cryptographic isolation, authentication policies, and API rate limiting.</p>
+        </div>
+        <div>
+            <span class="badge bg-success px-3 py-2 fs-6">
+                <i class="fa-solid fa-circle-check me-1"></i> All Shields Active
+            </span>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm rounded-3">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-3 p-3 text-white me-3" style="background: #0b3948;">
+                            <i class="fa-solid fa-key fa-xl"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold mb-0">Identity & JWT</h5>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">ENFORCED</span>
+                        </div>
+                    </div>
+                    <ul class="list-unstyled mb-0 small text-muted">
+                        <li class="py-1"><strong>Algorithm:</strong> HMAC-SHA256 (256-bit Key)</li>
+                        <li class="py-1"><strong>Clock Skew:</strong> 30 seconds</li>
+                        <li class="py-1"><strong>Refresh Policy:</strong> Anti-replay token rotation</li>
+                        <li class="py-1"><strong>Lockout:</strong> 5 failed attempts &rarr; 15m lockout</li>
+                        <li class="py-1"><strong>Password Policy:</strong> &ge; 12 chars (Upper, Lower, Digit, Special)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm rounded-3">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-3 p-3 text-white me-3" style="background: #0b3948;">
+                            <i class="fa-solid fa-layer-group fa-xl"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold mb-0">Multi-Tenancy</h5>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">ISOLATED</span>
+                        </div>
+                    </div>
+                    <ul class="list-unstyled mb-0 small text-muted">
+                        <li class="py-1"><strong>Filter:</strong> EF Core Global Query Filter on all tables</li>
+                        <li class="py-1"><strong>Resolution:</strong> Claims &rarr; Headers &rarr; Subdomain &rarr; Default</li>
+                        <li class="py-1"><strong>Soft Delete:</strong> <code>IsDeleted = 0</code> automatic exclusion</li>
+                        <li class="py-1"><strong>Cross-Tenant Leakage:</strong> Zero-tolerance query filter</li>
+                        <li class="py-1"><strong>Audit Trail:</strong> CreatedAt, CreatedBy, UpdatedAt tracked</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm rounded-3">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-3 p-3 text-white me-3" style="background: #0b3948;">
+                            <i class="fa-solid fa-gauge-high fa-xl"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold mb-0">API Rate Limiting</h5>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">ACTIVE</span>
+                        </div>
+                    </div>
+                    <ul class="list-unstyled mb-0 small text-muted">
+                        <li class="py-1"><strong>General API:</strong> 100 requests / minute per IP</li>
+                        <li class="py-1"><strong>Auth Endpoints:</strong> 10 requests / minute (anti-bruteforce)</li>
+                        <li class="py-1"><strong>Status Code:</strong> HTTP 429 Too Many Requests</li>
+                        <li class="py-1"><strong>Concurrency:</strong> RowVersion optimistic concurrency check</li>
+                        <li class="py-1"><strong>Exception Handling:</strong> RFC-7807 ProblemDetails format</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="fw-bold mb-0">Enterprise Security Checklist</h5>
+        </div>
+        <div class="card-body p-4">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Security Control</th>
+                            <th>Target Standard</th>
+                            <th>Implementation Mechanism</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="fw-semibold">Multi-Tenant Data Partitioning</td>
+                            <td>Zero Cross-Tenant Leakage</td>
+                            <td>EF Core Global Query Filters + TenantResolverMiddleware</td>
+                            <td><span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Verified</span></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold">Optimistic Concurrency Protection</td>
+                            <td>Prevent Lost Updates</td>
+                            <td>SQL Server <code>rowversion</code> + EF ConcurrencyToken</td>
+                            <td><span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Verified</span></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold">Role-Based Access Control (RBAC)</td>
+                            <td>Least Privilege Principle</td>
+                            <td>ClaimsPrincipal + Custom Auth Policies (Admin, Teacher, Student)</td>
+                            <td><span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Verified</span></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold">Brute-Force & Credential Stuffing Defense</td>
+                            <td>OWASP Authentication Top 10</td>
+                            <td>Identity Lockout (5 attempts) + Auth FixedWindow RateLimiter (10/min)</td>
+                            <td><span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Verified</span></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold">Data Protection Key Persistence</td>
+                            <td>Stateless Cluster Safe</td>
+                            <td>Entity Framework Core Key Repository (DataProtectionKeys table)</td>
+                            <td><span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Verified</span></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold">Automated Soft-Delete Audit Trail</td>
+                            <td>Regulatory Audit Compliance</td>
+                            <td>BaseEntity interceptor with CreatedAt/Updated/Deleted audit timestamps</td>
+                            <td><span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Verified</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

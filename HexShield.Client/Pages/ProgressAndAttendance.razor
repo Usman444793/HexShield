@@ -1,0 +1,182 @@
+@page "/teacher/courses/{CourseId:int}/attendance"
+@page "/admin/courses/{CourseId:int}/attendance"
+@attribute [Authorize(Roles = "Admin,Teacher")]
+@layout AdminLayout
+@using System.Net.Http.Json
+@using HexShield.Shared.DTOs
+@using HexShield.Shared.Enums
+@inject HttpClient Http
+
+<PageTitle>Attendance & Progress - HexShield</PageTitle>
+
+<div class="analytics-container">
+    <div class="page-header">
+        <div>
+            <div class="breadcrumb mb-2">
+                <a href="/admin/courses"><i class="fa-solid fa-arrow-left"></i> Back to Courses</a>
+            </div>
+            <h1 class="page-title">Course #@CourseId - Attendance & Progress</h1>
+            <p class="page-subtitle">Track daily attendance rates and monitor completion benchmarks across students.</p>
+        </div>
+        <button class="btn-primary" @onclick="SaveAttendance" disabled="@isSaving">
+            <i class="fa-solid fa-floppy-disk"></i> @(isSaving ? "Saving..." : "Save Attendance")
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success")">
+            <span>@statusMessage</span>
+            <button class="alert-close" @onclick="() => statusMessage = null">&times;</button>
+        </div>
+    }
+
+    <div class="filter-bar">
+        <div class="form-group inline">
+            <label>Session Date:</label>
+            <input type="date" class="form-control" @bind="selectedDate" @bind:after="LoadRosterAndProgress" />
+        </div>
+    </div>
+
+    <div class="table-card">
+        @if (isLoading)
+        {
+            <div class="loading-state"><i class="fa-solid fa-spinner fa-spin spinner"></i><p>Loading analytics roster...</p></div>
+        }
+        else if (!studentRows.Any())
+        {
+            <div class="empty-state"><h3>No active students enrolled in this course.</h3></div>
+        }
+        else
+        {
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Student Name</th>
+                        <th>Lesson Progress</th>
+                        <th>Assignments</th>
+                        <th>Attendance Rate</th>
+                        <th>Today's Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var student in studentRows)
+                    {
+                        <tr>
+                            <td><strong>@student.StudentName</strong></td>
+                            <td>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar" style="width: @(student.CompletionPercentage)%"></div>
+                                </div>
+                                <small>@student.CompletedLessons / @student.TotalLessons (@student.CompletionPercentage%)</small>
+                            </td>
+                            <td>@student.SubmittedAssignments / @student.TotalAssignments</td>
+                            <td><strong>@student.AttendancePercentage%</strong></td>
+                            <td>
+                                <select class="form-control select-compact" @bind="student.CurrentAttendanceStatus">
+                                    <option value="@AttendanceStatus.Present">Present</option>
+                                    <option value="@AttendanceStatus.Late">Late</option>
+                                    <option value="@AttendanceStatus.Absent">Absent</option>
+                                    <option value="@AttendanceStatus.Excused">Excused</option>
+                                </select>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int CourseId { get; set; }
+
+    private DateTime selectedDate = DateTime.Today;
+    private List<StudentRowVm> studentRows = new();
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private string? statusMessage;
+    private bool isError;
+
+    public record StudentRowVm : StudentCourseProgressDto
+    {
+        public AttendanceStatus CurrentAttendanceStatus { get; set; } = AttendanceStatus.Present;
+
+        public StudentRowVm(StudentCourseProgressDto baseDto)
+            : base(baseDto.StudentId, baseDto.StudentName, baseDto.TotalLessons, baseDto.CompletedLessons,
+                   baseDto.CompletionPercentage, baseDto.TotalAssignments, baseDto.SubmittedAssignments,
+                   baseDto.AttendancePercentage)
+        {
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRosterAndProgress();
+    }
+
+    private async Task LoadRosterAndProgress()
+    {
+        isLoading = true;
+        try
+        {
+            var progressData = await Http.GetFromJsonAsync<List<StudentCourseProgressDto>>($"api/analytics/progress/course/{CourseId}") ?? new();
+            var attendanceData = await Http.GetFromJsonAsync<List<AttendanceRecordDto>>($"api/analytics/attendance/course/{CourseId}?date={selectedDate:yyyy-MM-dd}") ?? new();
+
+            studentRows = progressData.Select(p =>
+            {
+                var vm = new StudentRowVm(p);
+                var existingAtt = attendanceData.FirstOrDefault(a => a.StudentId == p.StudentId);
+                if (existingAtt != null)
+                {
+                    vm.CurrentAttendanceStatus = existingAtt.Status;
+                }
+                return vm;
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            statusMessage = ex.Message;
+            isError = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveAttendance()
+    {
+        isSaving = true;
+        try
+        {
+            var payload = new BulkMarkAttendanceRequestDto(
+                CourseId,
+                null,
+                selectedDate,
+                studentRows.Select(s => new StudentAttendanceItemDto(s.StudentId, s.CurrentAttendanceStatus, null)).ToList()
+            );
+
+            var response = await Http.PostAsJsonAsync("api/analytics/attendance/bulk", payload);
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = "Attendance saved successfully!";
+                isError = false;
+            }
+            else
+            {
+                statusMessage = "Failed to save attendance.";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = ex.Message;
+            isError = true;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

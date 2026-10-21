@@ -1,0 +1,309 @@
+@page "/admin/tenants"
+@layout AdminLayout
+@attribute [Authorize(Policy = "AdminOnly")]
+@using HexShield.Shared.DTOs
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Tenant Organizations | HexShield Admin</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <div class="text-muted small mb-1">
+                <a href="/admin" class="text-decoration-none text-muted"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+            </div>
+            <h2 class="fw-bold mb-1">Tenant Organizations</h2>
+            <p class="text-muted mb-0">Manage isolated multi-tenant workspaces, domain routing, and tenant lifecycle.</p>
+        </div>
+        <button class="btn btn-primary" style="background: #0b3948; border-color: #0b3948;" @onclick="OpenCreateModal">
+            <i class="fa-solid fa-plus me-1"></i> Add Tenant
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show" role="alert">
+            <span>@statusMessage</span>
+            <button type="button" class="btn-close" @onclick="() => statusMessage = null"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-body p-0">
+            @if (isLoading)
+            {
+                <div class="p-5 text-center text-muted">
+                    <i class="fa-solid fa-spinner fa-spin fa-2x mb-3"></i>
+                    <p class="mb-0">Loading tenants...</p>
+                </div>
+            }
+            else if (tenants == null || !tenants.Any())
+            {
+                <div class="p-5 text-center text-muted">
+                    <i class="fa-solid fa-building-circle-exclamation fa-2x mb-3"></i>
+                    <p class="mb-0">No tenant organizations found.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">ID</th>
+                                <th>Organization Name</th>
+                                <th>Tenant Identifier</th>
+                                <th>Custom Domain</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th class="text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var tenant in tenants)
+                            {
+                                <tr>
+                                    <td class="ps-4 fw-bold text-muted">#@tenant.Id</td>
+                                    <td>
+                                        <div class="fw-semibold text-dark">@tenant.Name</div>
+                                    </td>
+                                    <td>
+                                        <code class="px-2 py-1 bg-light rounded text-dark">@tenant.Identifier</code>
+                                    </td>
+                                    <td>
+                                        @(string.IsNullOrEmpty(tenant.CustomDomain) ? "—" : tenant.CustomDomain)
+                                    </td>
+                                    <td>
+                                        <span class="badge @(tenant.IsActive ? "bg-success" : "bg-danger")">
+                                            @(tenant.IsActive ? "Active" : "Inactive")
+                                        </span>
+                                    </td>
+                                    <td class="text-muted small">@tenant.CreatedAt.ToString("MMM dd, yyyy")</td>
+                                    <td class="text-end pe-4">
+                                        <button class="btn btn-sm btn-outline-secondary me-1" title="Edit Tenant" @onclick="() => OpenEditModal(tenant)">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </button>
+                                        <button class="btn btn-sm @(tenant.IsActive ? "btn-outline-warning" : "btn-outline-success")" 
+                                                title="@(tenant.IsActive ? "Deactivate" : "Activate")" 
+                                                @onclick="() => ToggleTenantStatus(tenant)">
+                                            <i class="fa-solid @(tenant.IsActive ? "fa-ban" : "fa-check")"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@if (isModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">@(editingTenantId.HasValue ? "Edit Tenant" : "Create New Tenant")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Tenant Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" placeholder="e.g. Acme Academy" @bind="tenantForm.Name" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Identifier (Slug / Subdomain) <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" placeholder="e.g. acme" @bind="tenantForm.Identifier" />
+                        <div class="form-text">Used for tenant header context and subdomain isolation.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Custom Domain</label>
+                        <input type="text" class="form-control" placeholder="e.g. lms.acme.edu" @bind="tenantForm.CustomDomain" />
+                    </div>
+                    @if (editingTenantId.HasValue)
+                    {
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="tenantActiveSwitch" @bind="tenantForm.IsActive" />
+                            <label class="form-check-label fw-semibold" for="tenantActiveSwitch">Active Tenant</label>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" style="background: #0b3948; border-color: #0b3948;" @onclick="SaveTenantAsync" disabled="@isSaving">
+                        @(isSaving ? "Saving..." : "Save Tenant")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<TenantDto>? tenants;
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool isModalOpen = false;
+    private int? editingTenantId = null;
+    private string? statusMessage;
+    private bool isError = false;
+
+    private TenantFormModel tenantForm = new();
+
+    private class TenantFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Identifier { get; set; } = string.Empty;
+        public string? CustomDomain { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTenantsAsync();
+    }
+
+    private async Task LoadTenantsAsync()
+    {
+        isLoading = true;
+        try
+        {
+            tenants = await Http.GetFromJsonAsync<List<TenantDto>>("api/admin/tenants") ?? new();
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Failed to load tenants: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        editingTenantId = null;
+        tenantForm = new TenantFormModel();
+        isModalOpen = true;
+    }
+
+    private void OpenEditModal(TenantDto tenant)
+    {
+        editingTenantId = tenant.Id;
+        tenantForm = new TenantFormModel
+        {
+            Name = tenant.Name,
+            Identifier = tenant.Identifier,
+            CustomDomain = tenant.CustomDomain,
+            IsActive = tenant.IsActive
+        };
+        isModalOpen = true;
+    }
+
+    private void CloseModal()
+    {
+        isModalOpen = false;
+        editingTenantId = null;
+    }
+
+    private async Task SaveTenantAsync()
+    {
+        if (string.IsNullOrWhiteSpace(tenantForm.Name) || string.IsNullOrWhiteSpace(tenantForm.Identifier))
+        {
+            statusMessage = "Tenant Name and Identifier are required.";
+            isError = true;
+            return;
+        }
+
+        isSaving = true;
+        statusMessage = null;
+
+        try
+        {
+            if (editingTenantId.HasValue)
+            {
+                var updateDto = new UpdateTenantDto(
+                    tenantForm.Name.Trim(),
+                    tenantForm.Identifier.Trim().ToLowerInvariant(),
+                    string.IsNullOrWhiteSpace(tenantForm.CustomDomain) ? null : tenantForm.CustomDomain.Trim(),
+                    tenantForm.IsActive
+                );
+
+                var response = await Http.PutAsJsonAsync($"api/admin/tenants/{editingTenantId.Value}", updateDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    statusMessage = "Tenant updated successfully.";
+                    isError = false;
+                    CloseModal();
+                    await LoadTenantsAsync();
+                }
+                else
+                {
+                    var err = await response.Content.ReadAsStringAsync();
+                    statusMessage = $"Error updating tenant: {err}";
+                    isError = true;
+                }
+            }
+            else
+            {
+                var createDto = new CreateTenantDto(
+                    tenantForm.Name.Trim(),
+                    tenantForm.Identifier.Trim().ToLowerInvariant(),
+                    string.IsNullOrWhiteSpace(tenantForm.CustomDomain) ? null : tenantForm.CustomDomain.Trim()
+                );
+
+                var response = await Http.PostAsJsonAsync("api/admin/tenants", createDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    statusMessage = "Tenant created successfully.";
+                    isError = false;
+                    CloseModal();
+                    await LoadTenantsAsync();
+                }
+                else
+                {
+                    var err = await response.Content.ReadAsStringAsync();
+                    statusMessage = $"Error creating tenant: {err}";
+                    isError = true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Service error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ToggleTenantStatus(TenantDto tenant)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/admin/tenants/{tenant.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = $"Tenant '{tenant.Name}' status updated.";
+                isError = false;
+                await LoadTenantsAsync();
+            }
+            else
+            {
+                statusMessage = "Failed to update tenant status.";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            isError = true;
+        }
+    }
+}

@@ -1,4 +1,5 @@
 @using Microsoft.AspNetCore.Components.Authorization
+@using HexShield.Client.Services
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 
@@ -10,12 +11,9 @@
             return;
         }
 
-        // Ensure provider has initialized (WASM provider exposes InitializeFromStorageAsync)
-        var init = AuthStateProvider?.GetType().GetMethod("InitializeFromStorageAsync");
-        if (init != null)
+        if (AuthStateProvider is CustomAuthenticationStateProvider customProvider)
         {
-            var r = init.Invoke(AuthStateProvider, null);
-            if (r is Task t) await t;
+            await customProvider.InitializeFromStorageAsync();
         }
 
         var state = await AuthStateProvider.GetAuthenticationStateAsync();

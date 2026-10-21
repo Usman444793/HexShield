@@ -5,6 +5,7 @@ namespace HexShield.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[IgnoreAntiforgeryToken]
 public abstract class ApiControllerBase : ControllerBase
 {
     protected string GetClientIpAddress()

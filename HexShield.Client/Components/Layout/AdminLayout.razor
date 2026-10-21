@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
 <div class="admin-layout">
     <aside class="admin-sidebar">
@@ -70,6 +70,10 @@
                         <span>⌘</span>
                         Organizations
                     </NavLink>
+                    <NavLink href="/admin/tenants" class="admin-nav-link">
+                        <span>🏢</span>
+                        Tenants
+                    </NavLink>
                     <NavLink href="/admin/courses" class="admin-nav-link">
                         <span>≡</span>
                         Courses
@@ -92,6 +96,10 @@
                     <NavLink href="/admin/access-control" class="admin-nav-link">
                         <span>◈</span>
                         Access Control
+                    </NavLink>
+                    <NavLink href="/admin/security" class="admin-nav-link">
+                        <span>🛡️</span>
+                        Security Center
                     </NavLink>
                 </Authorized>
             </AuthorizeView>

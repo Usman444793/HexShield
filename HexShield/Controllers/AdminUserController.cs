@@ -1,4 +1,4 @@
-using HexShield.Models.DTOs.Admin;
+using HexShield.Shared.DTOs;
 using HexShield.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

@@ -13,5 +13,7 @@ public class QuizAnswer : BaseEntity
     [Range(0,1000)]
     public int AwardedMarks { get; set; }
     public string? TeacherFeedback { get; set; }
+    public int SelectedOptionId { get; set; }
+    public bool IsCorrect { get; set; }
     public ICollection<QuizAnswerOption> SelectedOptions { get; set; } = new List<QuizAnswerOption>();
 }

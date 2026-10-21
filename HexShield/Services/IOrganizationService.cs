@@ -1,4 +1,4 @@
-﻿using HexShield.Models.DTOs.Admin;
+using HexShield.Shared.DTOs;
 
 namespace HexShield.Services;
 

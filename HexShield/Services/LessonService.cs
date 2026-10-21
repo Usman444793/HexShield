@@ -1,9 +1,7 @@
-﻿using HexShield.Client.Models.DTOs.Lesson;
 using HexShield.Data;
 using HexShield.Infrastructure.Tenancy;
 using HexShield.Models.Academic;
-using HexShield.Models.DTOs.Admin;
-using HexShield.Models.DTOs.Courses;
+using HexShield.Shared.DTOs;
 using Microsoft.EntityFrameworkCore;
 
 namespace HexShield.Services;
@@ -135,8 +133,11 @@ public class LessonService : ILessonService
         foreach (var lesson in lessons) 
         {
             var update = reOrderDtos.FirstOrDefault(r => r.LessonId == lesson.Id);
-            lesson.SortOrder = update.NewSortOrder;
-            lesson.UpdatedById = userId;
+            if (update != null)
+            {
+                lesson.SortOrder = update.NewSortOrder;
+                lesson.UpdatedById = userId;
+            }
         }
         await _context.SaveChangesAsync();
         _logger.LogInformation($"Re Ordered lesson by {courseId} by {userId}");

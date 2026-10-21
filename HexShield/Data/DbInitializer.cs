@@ -1,5 +1,6 @@
 using HexShield.Models.Common;
 using HexShield.Models.Identity;
+using HexShield.Shared.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -91,9 +92,23 @@ public static class DbInitializer
                         string.Join(", ", createResult.Errors.Select(e => e.Description)));
                 }
             }
-            else if (!await userManager.IsInRoleAsync(adminUser, LmsRoles.Admin))
+            else
             {
-                await userManager.AddToRoleAsync(adminUser, LmsRoles.Admin);
+                if (!await userManager.IsInRoleAsync(adminUser, LmsRoles.Admin))
+                {
+                    await userManager.AddToRoleAsync(adminUser, LmsRoles.Admin);
+                }
+                adminUser.IsActive = true;
+                adminUser.EmailConfirmed = true;
+                adminUser.LockoutEnd = null;
+                await userManager.UpdateAsync(adminUser);
+
+                if (!await userManager.CheckPasswordAsync(adminUser, "Admin@12345678!"))
+                {
+                    var resetToken = await userManager.GeneratePasswordResetTokenAsync(adminUser);
+                    await userManager.ResetPasswordAsync(adminUser, resetToken, "Admin@12345678!");
+                    logger.LogInformation("Reset default admin password to Admin@12345678!");
+                }
             }
         }
         catch (Exception ex)

@@ -1,6 +1,6 @@
 using HexShield.Data;
 using HexShield.Infrastructure.Tenancy;
-using HexShield.Models.DTOs.Admin;
+using HexShield.Shared.DTOs;
 using HexShield.Models.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

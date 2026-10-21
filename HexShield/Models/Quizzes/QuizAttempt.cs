@@ -12,10 +12,11 @@ public class QuizAttempt : BaseEntity,IMultiTenant
     [Required]
     public int StudentProfileId { get; set; }
     public StudentProfile StudentProfile { get; set; } = null!;
-    public DateTimeOffset StartedAt { get; set; } = DateTimeOffset.UtcNow;
-    public DateTimeOffset? CompletedAt { get; set; }
+    public string StudentId { get; set; } = string.Empty;
+    public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CompletedAt { get; set; }
     [Range(0, 1000)]
-    public int? Score { get; set; }
+    public decimal Score { get; set; }
     public decimal TotalPossibleScore { get; set; } = 0m;
     public bool IsCompleted { get; set; } = false;
     public bool Passed { get; set; } = false;
