@@ -100,7 +100,9 @@ public class AssignmentService : IAssignmentService
             s.Grade,
             s.Assignment.MaxScore,
             s.Status,
-            s.AttachmentUrl
+            s.AttachmentUrl,
+            s.Content,
+            s.Feedback
             )).ToListAsync();
     }
     public async Task<SubmissionListDto?> GetStudentSubmissionAsync(int assignmentId,string studentId)
@@ -115,7 +117,9 @@ public class AssignmentService : IAssignmentService
             s.Grade,
             s.Assignment.MaxScore,
             s.Status,
-            s.AttachmentUrl
+            s.AttachmentUrl,
+            s.Content,
+            s.Feedback
             )).FirstOrDefaultAsync();
     }
     public async Task<SubmissionListDto> SubmitAssignmentAsync(CreateSubmissionRequestDto dto,string studentId)
@@ -158,7 +162,7 @@ public class AssignmentService : IAssignmentService
         submission.Feedback = dto.Feedback;
         submission.Status = SubmissionStatus.Graded;
         submission.UpdatedById = teacherId;
-            return (await GetSubmissionsByAssignmentAsync(submission.AssignmentId)).First(s => s.Id == submissionId);
-
+        await _context.SaveChangesAsync();
+        return (await GetSubmissionsByAssignmentAsync(submission.AssignmentId)).First(s => s.Id == submissionId);
     }
 }

@@ -134,6 +134,15 @@ public class ProgressAndAttendanceService : IProgressAndAttendanceService
         return true;
     }
 
+    public async Task<IEnumerable<int>> GetCompletedLessonIdsAsync(int courseId, string studentId)
+    {
+        return await _context.LessonProgresses
+            .AsNoTracking()
+            .Where(lp => lp.Lesson.CourseId == courseId && lp.StudentProfile.UserId == studentId && lp.IsCompleted)
+            .Select(lp => lp.LessonId)
+            .ToListAsync();
+    }
+
     public async Task<StudentCourseProgressDto> GetStudentProgressInCourseAsync(int courseId, string studentId)
     {
         var student = await _context.Users.FirstOrDefaultAsync(u => u.Id == studentId);

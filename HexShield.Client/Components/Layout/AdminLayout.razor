@@ -3,35 +3,37 @@
 <div class="admin-layout">
     <aside class="admin-sidebar">
         <div class="admin-brand">
-            <div class="admin-logo">H</div>
-            <div>
-                <strong>HexShield</strong>
-                <AuthorizeView Roles="Admin">
-                    <Authorized>
-                        <span>ADMIN</span>
-                    </Authorized>
-                </AuthorizeView>
-                <AuthorizeView Roles="Teacher" Context="teacherAuth">
-                    <Authorized>
-                        <span>TEACHER</span>
-                    </Authorized>
-                </AuthorizeView>
-                <AuthorizeView Roles="Student" Context="studentAuth">
-                    <Authorized>
-                        <span>STUDENT</span>
-                    </Authorized>
-                </AuthorizeView>
-            </div>
+            <a href="/" class="admin-brand-link">
+                <div class="admin-logo">H</div>
+                <div class="admin-brand-text">
+                    <strong>HexShield</strong>
+                    <AuthorizeView Roles="Admin">
+                        <Authorized>
+                            <span class="portal-role-badge badge-admin">ADMIN PORTAL</span>
+                        </Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="Teacher" Context="teacherAuth">
+                        <Authorized>
+                            <span class="portal-role-badge badge-teacher">TEACHER PORTAL</span>
+                        </Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="Student" Context="studentAuth">
+                        <Authorized>
+                            <span class="portal-role-badge badge-student">STUDENT PORTAL</span>
+                        </Authorized>
+                    </AuthorizeView>
+                </div>
+            </a>
         </div>
 
-        <div class="admin-navigation">
-            <div class="nav-section-title">OVERVIEW</div>
+        <nav class="admin-navigation">
+            <div class="nav-section-title">WORKSPACE</div>
 
             <AuthorizeView Roles="Admin">
                 <Authorized>
                     <NavLink href="/admin" Match="NavLinkMatch.All" class="admin-nav-link">
-                        <span>▦</span>
-                        Dashboard
+                        <span class="nav-icon"><i class="fa-solid fa-chart-pie"></i></span>
+                        <span class="nav-label">Admin Dashboard</span>
                     </NavLink>
                 </Authorized>
             </AuthorizeView>
@@ -39,8 +41,8 @@
             <AuthorizeView Roles="Teacher" Context="teacherOverview">
                 <Authorized>
                     <NavLink href="/teacher" Match="NavLinkMatch.All" class="admin-nav-link">
-                        <span>▦</span>
-                        Workspace
+                        <span class="nav-icon"><i class="fa-solid fa-chalkboard-user"></i></span>
+                        <span class="nav-label">Instructor Hub</span>
                     </NavLink>
                 </Authorized>
             </AuthorizeView>
@@ -48,84 +50,160 @@
             <AuthorizeView Roles="Student" Context="studentOverview">
                 <Authorized>
                     <NavLink href="/student" Match="NavLinkMatch.All" class="admin-nav-link">
-                        <span>▦</span>
-                        Workspace
+                        <span class="nav-icon"><i class="fa-solid fa-graduation-cap"></i></span>
+                        <span class="nav-label">Learning Portal</span>
                     </NavLink>
-                </Authorized>
-            </AuthorizeView>
-
-            <AuthorizeView Roles="Admin,Teacher">
-                <Authorized>
-                    <div class="nav-section-title">MANAGEMENT</div>
                 </Authorized>
             </AuthorizeView>
 
             <AuthorizeView Roles="Admin" Context="adminUsers">
                 <Authorized>
+                    <div class="nav-section-title">ACADEMIC &amp; ORG</div>
                     <NavLink href="/admin/users" class="admin-nav-link">
-                        <span>♙</span>
-                        Users
+                        <span class="nav-icon"><i class="fa-solid fa-users"></i></span>
+                        <span class="nav-label">Users &amp; Roles</span>
                     </NavLink>
                     <NavLink href="/admin/organizations" class="admin-nav-link">
-                        <span>⌘</span>
-                        Organizations
+                        <span class="nav-icon"><i class="fa-solid fa-sitemap"></i></span>
+                        <span class="nav-label">Organizations</span>
                     </NavLink>
                     <NavLink href="/admin/tenants" class="admin-nav-link">
-                        <span>🏢</span>
-                        Tenants
+                        <span class="nav-icon"><i class="fa-solid fa-building-shield"></i></span>
+                        <span class="nav-label">Tenants</span>
                     </NavLink>
                     <NavLink href="/admin/courses" class="admin-nav-link">
-                        <span>≡</span>
-                        Courses
+                        <span class="nav-icon"><i class="fa-solid fa-book-open"></i></span>
+                        <span class="nav-label">Course Catalog</span>
                     </NavLink>
                 </Authorized>
             </AuthorizeView>
 
             <AuthorizeView Roles="Teacher" Context="teacherCourses">
                 <Authorized>
+                    <div class="nav-section-title">TEACHING &amp; GRADING</div>
                     <NavLink href="/teacher/courses" class="admin-nav-link">
-                        <span>≡</span>
-                        Courses
+                        <span class="nav-icon"><i class="fa-solid fa-book-open-reader"></i></span>
+                        <span class="nav-label">Courses &amp; Curriculum</span>
                     </NavLink>
+                    <a href="/teacher#courses-workspace" class="admin-nav-link">
+                        <span class="nav-icon"><i class="fa-solid fa-file-pen"></i></span>
+                        <span class="nav-label">Assignments &amp; Quizzes</span>
+                    </a>
+                    <a href="/teacher#courses-workspace" class="admin-nav-link">
+                        <span class="nav-icon"><i class="fa-solid fa-clipboard-user"></i></span>
+                        <span class="nav-label">Attendance &amp; Progress</span>
+                    </a>
+                </Authorized>
+            </AuthorizeView>
+
+            <AuthorizeView Roles="Student" Context="studentLinks">
+                <Authorized>
+                    <div class="nav-section-title">MY ACADEMICS</div>
+                    <a href="/student#enrolled-courses" class="admin-nav-link">
+                        <span class="nav-icon"><i class="fa-solid fa-laptop-code"></i></span>
+                        <span class="nav-label">Enrolled Courses</span>
+                    </a>
+                    <a href="/student#course-workspace" class="admin-nav-link">
+                        <span class="nav-icon"><i class="fa-solid fa-list-check"></i></span>
+                        <span class="nav-label">Quizzes &amp; Assignments</span>
+                    </a>
+                    <a href="/student#course-workspace" class="admin-nav-link">
+                        <span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+                        <span class="nav-label">Attendance &amp; Progress</span>
+                    </a>
                 </Authorized>
             </AuthorizeView>
 
             <AuthorizeView Roles="Admin" Context="adminSecurity">
                 <Authorized>
-                    <div class="nav-section-title">SECURITY</div>
+                    <div class="nav-section-title">SECURITY &amp; GOVERNANCE</div>
                     <NavLink href="/admin/access-control" class="admin-nav-link">
-                        <span>◈</span>
-                        Access Control
+                        <span class="nav-icon"><i class="fa-solid fa-user-lock"></i></span>
+                        <span class="nav-label">Access Control</span>
                     </NavLink>
                     <NavLink href="/admin/security" class="admin-nav-link">
-                        <span>🛡️</span>
-                        Security Center
+                        <span class="nav-icon"><i class="fa-solid fa-shield-halved"></i></span>
+                        <span class="nav-label">Security Center</span>
                     </NavLink>
                 </Authorized>
             </AuthorizeView>
-        </div>
+        </nav>
 
         <div class="admin-sidebar-bottom">
+            <div class="sidebar-tenant-card">
+                <span class="tenant-dot"></span>
+                <div>
+                    <strong>Tenant Isolation</strong>
+                    <span>Zero-Trust Active</span>
+                </div>
+            </div>
             <a href="/logout" class="admin-logout">
-                ↪ Logout
+                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                <span>Sign Out</span>
             </a>
         </div>
     </aside>
 
     <div class="admin-main">
         <header class="admin-topbar">
-            <div class="admin-search">
-                <span>⌕</span>
-                <input placeholder="Search..." />
+            <div class="topbar-left">
+                <AuthorizeView Roles="Admin" Context="topAdmin">
+                    <Authorized>
+                        <div class="topbar-portal-pill">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <span>Admin Control Plane</span>
+                        </div>
+                        <nav class="topbar-quick-nav">
+                            <NavLink href="/admin" Match="NavLinkMatch.All" class="topbar-quick-link">Overview</NavLink>
+                            <NavLink href="/admin/users" class="topbar-quick-link">Users</NavLink>
+                            <NavLink href="/admin/courses" class="topbar-quick-link">Courses</NavLink>
+                            <NavLink href="/admin/tenants" class="topbar-quick-link">Tenants</NavLink>
+                            <NavLink href="/admin/security" class="topbar-quick-link">Security</NavLink>
+                        </nav>
+                    </Authorized>
+                </AuthorizeView>
+
+                <AuthorizeView Roles="Teacher" Context="topTeacher">
+                    <Authorized>
+                        <div class="topbar-portal-pill teacher-pill">
+                            <i class="fa-solid fa-chalkboard-user"></i>
+                            <span>Instructor Workspace</span>
+                        </div>
+                        <nav class="topbar-quick-nav">
+                            <NavLink href="/teacher" Match="NavLinkMatch.All" class="topbar-quick-link">Instructor Hub</NavLink>
+                            <NavLink href="/teacher/courses" class="topbar-quick-link">Manage Courses</NavLink>
+                        </nav>
+                    </Authorized>
+                </AuthorizeView>
+
+                <AuthorizeView Roles="Student" Context="topStudent">
+                    <Authorized>
+                        <div class="topbar-portal-pill student-pill">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                            <span>Student Learning Hub</span>
+                        </div>
+                        <nav class="topbar-quick-nav">
+                            <NavLink href="/student" Match="NavLinkMatch.All" class="topbar-quick-link">My Dashboard</NavLink>
+                            <a href="/student#enrolled-courses" class="topbar-quick-link">My Courses</a>
+                            <a href="/student#course-workspace" class="topbar-quick-link">Workspace &amp; Grades</a>
+                        </nav>
+                    </Authorized>
+                </AuthorizeView>
             </div>
+
             <div class="admin-top-actions">
+                <div class="admin-search">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input placeholder="Search portal resources..." />
+                </div>
+
                 <div class="admin-profile">
                     <div class="profile-avatar">H</div>
-                    <div>
+                    <div class="profile-meta">
                         <AuthorizeView>
                             <Authorized>
                                 <strong>@context.User.Identity?.Name</strong>
-                                <span>Signed in</span>
+                                <span>Verified Session</span>
                             </Authorized>
                             <NotAuthorized>
                                 <strong>Guest</strong>
@@ -134,8 +212,13 @@
                         </AuthorizeView>
                     </div>
                 </div>
+
+                <a href="/logout" class="topbar-signout-btn" title="Sign Out">
+                    <i class="fa-solid fa-power-off"></i>
+                </a>
             </div>
         </header>
+
         <main class="admin-content">
             @Body
         </main>

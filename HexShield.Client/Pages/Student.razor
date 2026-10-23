@@ -1,22 +1,864 @@
 @page "/student"
-@attribute [Authorize(Policy = "StudentOnly")]
+@attribute [Authorize(Roles = "Student,Admin,Teacher")]
 @layout HexShield.Client.Components.Layout.AdminLayout
+@using System.Net.Http.Json
+@using HexShield.Shared.DTOs
+@using HexShield.Shared.Enums
+@inject HttpClient Http
 
-<PageTitle>Student Workspace</PageTitle>
+<PageTitle>Student Learning Portal | HexShield</PageTitle>
 
-<div class="admin-dashboard">
-    <div class="page-heading">
+<div class="student-portal">
+    <!-- Hero Header -->
+    <div class="student-hero">
         <div>
-            <span class="eyebrow">HEXSHIELD LEARNING</span>
+            <span class="eyebrow">HEXSHIELD LEARNING PORTAL</span>
             <h1>Student Workspace</h1>
-            <p>Your learning dashboard. Course enrollment and progress will appear here as those modules come online.</p>
+            <p>Access your enrolled courses, complete lessons, submit assignments, take interactive quizzes, and track your attendance &amp; academic progress.</p>
         </div>
+        @if (activeProgress != null && selectedCourse != null)
+        {
+            <div class="hero-progress-pill">
+                <span>ACTIVE COURSE COMPLETION</span>
+                <strong>@activeProgress.CompletionPercentage%</strong>
+                <small>@activeProgress.CompletedLessons of @activeProgress.TotalLessons lessons completed</small>
+            </div>
+        }
     </div>
-    <div class="admin-cards">
-        <div class="admin-card">
-            <span class="card-label">ACCOUNT</span>
-            <h2>Signed in</h2>
-            <p>You are authenticated as a student. Admin and teacher tools stay hidden from this workspace.</p>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success")">
+            <span>@statusMessage</span>
+            <button type="button" class="alert-close" @onclick="() => statusMessage = null">&times;</button>
         </div>
-    </div>
+    }
+
+    @if (isInitialLoading)
+    {
+        <div class="empty-box">
+            <p>Loading your courses and academic progress...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Enrolled Courses Selector Strip -->
+        <div class="courses-strip-section">
+            <div class="strip-header">
+                <h2>My Enrolled Courses (@myEnrollments.Count)</h2>
+                <button type="button" class="btn-outline-sm" @onclick="() => showCatalog = !showCatalog">
+                    @(showCatalog ? "Hide Course Catalog" : $"＋ Browse Available Courses ({AvailableCourses.Count()})")
+                </button>
+            </div>
+
+            @if (!myEnrollments.Any())
+            {
+                <div class="empty-box">
+                    <h3>You aren't enrolled in any courses yet</h3>
+                    <p>Enroll in any available course below to begin viewing lessons, submitting assignments, and taking quizzes.</p>
+                </div>
+            }
+            else
+            {
+                <div class="enrolled-cards-row">
+                    @foreach (var enrollment in myEnrollments)
+                    {
+                        var isSelected = selectedCourse?.CourseId == enrollment.CourseId;
+                        <div class="enrolled-course-card @(isSelected ? "selected" : "")"
+                             @onclick="() => SelectCourse(enrollment)">
+                            <div class="card-top">
+                                <span class="code-pill">@enrollment.CourseCode</span>
+                                <span class="status-pill">@enrollment.Status</span>
+                            </div>
+                            <h3>@enrollment.CourseTitle</h3>
+                            <span class="enrolled-date">Enrolled @enrollment.EnrolledAt.ToString("MMM dd, yyyy")</span>
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- Optional Course Catalog for Self-Enrollment -->
+            @if (showCatalog || !myEnrollments.Any())
+            {
+                @if (AvailableCourses.Any())
+                {
+                    <div class="catalog-box">
+                        <h4>Available Courses for Enrollment</h4>
+                        <div class="catalog-grid">
+                            @foreach (var course in AvailableCourses)
+                            {
+                                <div class="catalog-item">
+                                    <div>
+                                        <span class="code-pill">@course.CourseCode</span>
+                                        <strong>@course.Title</strong>
+                                        <p>@(string.IsNullOrWhiteSpace(course.Description) ? "Structured academic curriculum." : course.Description)</p>
+                                    </div>
+                                    <button type="button" class="btn-primary" @onclick="() => SelfEnrollInCourse(course.Id)">
+                                        Enroll Now
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Active Course Workspace -->
+        @if (selectedCourse != null)
+        {
+            <div class="course-workspace">
+                <!-- Progress Summary Bar -->
+                @if (activeProgress != null)
+                {
+                    <div class="progress-overview-grid">
+                        <div class="progress-stat-card">
+                            <span class="stat-label">LESSON PROGRESS</span>
+                            <div class="stat-row">
+                                <strong>@activeProgress.CompletionPercentage%</strong>
+                                <span>@activeProgress.CompletedLessons / @activeProgress.TotalLessons Completed</span>
+                            </div>
+                            <div class="progress-bar-track">
+                                <div class="progress-bar-fill" style="width: @(activeProgress.CompletionPercentage)%"></div>
+                            </div>
+                        </div>
+
+                        <div class="progress-stat-card">
+                            <span class="stat-label">ASSIGNMENTS SUBMITTED</span>
+                            <div class="stat-row">
+                                <strong>@activeProgress.SubmittedAssignments / @activeProgress.TotalAssignments</strong>
+                                <span>Coursework items</span>
+                            </div>
+                            <div class="progress-bar-track">
+                                @{
+                                    var assignPct = activeProgress.TotalAssignments > 0
+                                        ? Math.Round((decimal)activeProgress.SubmittedAssignments / activeProgress.TotalAssignments * 100, 0)
+                                        : 0;
+                                }
+                                <div class="progress-bar-fill teal" style="width: @(assignPct)%"></div>
+                            </div>
+                        </div>
+
+                        <div class="progress-stat-card">
+                            <span class="stat-label">ATTENDANCE RATE</span>
+                            <div class="stat-row">
+                                <strong>@activeProgress.AttendancePercentage%</strong>
+                                <span>@myAttendance.Count Recorded Sessions</span>
+                            </div>
+                            <div class="progress-bar-track">
+                                <div class="progress-bar-fill" style="width: @(activeProgress.AttendancePercentage)%"></div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Navigation Tabs -->
+                <div class="workspace-tabs">
+                    <button type="button" class="ws-tab @(activeTab == "lessons" ? "active" : "")"
+                            @onclick='() => activeTab = "lessons"'>
+                        📖 Lessons &amp; Content (@courseLessons.Count)
+                    </button>
+                    <button type="button" class="ws-tab @(activeTab == "assignments" ? "active" : "")"
+                            @onclick='() => activeTab = "assignments"'>
+                        📝 Assignments &amp; Grades (@courseAssignments.Count)
+                    </button>
+                    <button type="button" class="ws-tab @(activeTab == "quizzes" ? "active" : "")"
+                            @onclick='() => activeTab = "quizzes"'>
+                        ⏱️ Quizzes &amp; Attempts (@courseQuizzes.Count)
+                    </button>
+                    <button type="button" class="ws-tab @(activeTab == "attendance" ? "active" : "")"
+                            @onclick='() => activeTab = "attendance"'>
+                        📊 Attendance &amp; Progress (@myAttendance.Count)
+                    </button>
+                </div>
+
+                <!-- TAB 1: LESSONS & CONTENT -->
+                @if (activeTab == "lessons")
+                {
+                    <div class="lessons-split-view">
+                        <div class="lessons-sidebar">
+                            <h4>Course Curriculum</h4>
+                            @if (!courseLessons.Any())
+                            {
+                                <p class="muted-note">No lessons published for this course yet.</p>
+                            }
+                            else
+                            {
+                                @foreach (var lesson in courseLessons.OrderBy(l => l.sortOrder))
+                                {
+                                    var isCompleted = completedLessonIds.Contains(lesson.Id);
+                                    var isCurrent = selectedLessonDetail?.id == lesson.Id;
+                                    <div class="lesson-nav-item @(isCurrent ? "active" : "")"
+                                         @onclick="() => SelectLesson(lesson.Id)">
+                                        <div class="lesson-nav-left">
+                                            <span class="lesson-num">#@lesson.sortOrder</span>
+                                            <span class="lesson-name">@lesson.Title</span>
+                                        </div>
+                                        <span class="lesson-check @(isCompleted ? "done" : "")">
+                                            @(isCompleted ? "✓ Done" : "○ Read")
+                                        </span>
+                                    </div>
+                                }
+                            }
+                        </div>
+
+                        <div class="lesson-reader">
+                            @if (selectedLessonDetail == null)
+                            {
+                                <div class="empty-reader">
+                                    <h3>Select a lesson from the curriculum</h3>
+                                    <p>Click any lesson on the left to read its syllabus material, watch its lecture stream, and mark it complete.</p>
+                                </div>
+                            }
+                            else
+                            {
+                                var isLessonDone = completedLessonIds.Contains(selectedLessonDetail.id);
+                                <div class="reader-header">
+                                    <div>
+                                        <span class="code-pill">Lesson #@selectedLessonDetail.SortOrder</span>
+                                        <h3>@selectedLessonDetail.Title</h3>
+                                    </div>
+                                    <button type="button"
+                                            class="btn-primary @(isLessonDone ? "btn-done" : "")"
+                                            disabled="@(isLessonDone || isCompletingLesson)"
+                                            @onclick="() => CompleteLesson(selectedLessonDetail.id)">
+                                        @(isLessonDone ? "✓ Completed" : (isCompletingLesson ? "Marking..." : "✓ Mark Lesson Complete"))
+                                    </button>
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(selectedLessonDetail.VideoUrl))
+                                {
+                                    <div class="video-callout">
+                                        <span>🎬 Video Lecture Stream:</span>
+                                        <a href="@selectedLessonDetail.VideoUrl" target="_blank">@selectedLessonDetail.VideoUrl ↗</a>
+                                    </div>
+                                }
+
+                                <div class="reader-body">
+                                    @if (string.IsNullOrWhiteSpace(selectedLessonDetail.Content))
+                                    {
+                                        <p class="muted-note">No text content provided for this lesson.</p>
+                                    }
+                                    else
+                                    {
+                                        <div class="lesson-content-text">@selectedLessonDetail.Content</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <!-- TAB 2: ASSIGNMENTS & SUBMISSIONS -->
+                @if (activeTab == "assignments")
+                {
+                    <div class="tab-panel">
+                        @if (!courseAssignments.Any())
+                        {
+                            <div class="empty-box">
+                                <h3>No assignments posted for this course</h3>
+                                <p>Check back later for upcoming coursework and projects.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="items-grid">
+                                @foreach (var assign in courseAssignments)
+                                {
+                                    mySubmissions.TryGetValue(assign.Id, out var sub);
+                                    <div class="item-card">
+                                        <div class="item-card-top">
+                                            <div>
+                                                <h4>@assign.Title</h4>
+                                                <span class="due-text">Due: @assign.DueDate.ToString("MMM dd, yyyy HH:mm") · Max Score: @assign.MaxScore pts</span>
+                                            </div>
+                                            @if (sub != null)
+                                            {
+                                                <span class="status-badge @(sub.Status == SubmissionStatus.Graded ? "graded" : "submitted")">
+                                                    @sub.Status @(sub.Status == SubmissionStatus.Graded ? $"· {sub.Grade}/{assign.MaxScore} pts" : "")
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="status-badge pending">Pending Submission</span>
+                                            }
+                                        </div>
+
+                                        @if (sub != null)
+                                        {
+                                            <div class="my-sub-preview">
+                                                <strong>Your Submission (@sub.SubmittedAt.ToString("yyyy-MM-dd HH:mm")):</strong>
+                                                <p>@sub.Content</p>
+                                                @if (!string.IsNullOrWhiteSpace(sub.AttachmentUrl))
+                                                {
+                                                    <a href="@sub.AttachmentUrl" target="_blank" class="attach-link">🔗 @sub.AttachmentUrl</a>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(sub.Feedback))
+                                                {
+                                                    <div class="teacher-feedback-box">
+                                                        <strong>Instructor Feedback:</strong> @sub.Feedback
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+
+                                        <div class="item-card-footer">
+                                            <button type="button" class="btn-primary" @onclick="() => OpenSubmissionModal(assign, sub)">
+                                                @(sub == null ? "📤 Submit Assignment" : "✏️ Update Submission")
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                <!-- TAB 3: QUIZZES & ATTEMPTS -->
+                @if (activeTab == "quizzes")
+                {
+                    <div class="tab-panel">
+                        @if (!courseQuizzes.Any())
+                        {
+                            <div class="empty-box">
+                                <h3>No quizzes available for this course</h3>
+                                <p>Your instructor has not published any quizzes for this course yet.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="items-grid">
+                                @foreach (var quiz in courseQuizzes)
+                                {
+                                    myQuizAttempts.TryGetValue(quiz.Id, out var attempts);
+                                    var completedAttempts = attempts?.Where(a => a.CompletedAt.HasValue).ToList() ?? new();
+                                    <div class="item-card">
+                                        <div class="item-card-top">
+                                            <div>
+                                                <h4>@quiz.Title</h4>
+                                                <span class="due-text">
+                                                    ⏱️ @quiz.TimeLimitMinutes mins · 🎯 Pass: @quiz.PassPercentage% · ❓ @quiz.QuestionCount Questions · Max Attempts: @quiz.MaxAttempts
+                                                </span>
+                                            </div>
+                                            @if (completedAttempts.Any())
+                                            {
+                                                var best = completedAttempts.OrderByDescending(a => a.ScorePercentage).First();
+                                                <span class="status-badge @(best.IsPassed ? "graded" : "failed")">
+                                                    Best: @best.ScorePercentage% (@(best.IsPassed ? "PASSED" : "FAILED"))
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="status-badge pending">Not Attempted</span>
+                                            }
+                                        </div>
+
+                                        @if (completedAttempts.Any())
+                                        {
+                                            <div class="attempts-history">
+                                                <strong>Attempt History (@completedAttempts.Count / @quiz.MaxAttempts):</strong>
+                                                <div class="attempt-pills">
+                                                    @foreach (var att in completedAttempts.OrderBy(a => a.StartedAt))
+                                                    {
+                                                        <span class="attempt-pill @(att.IsPassed ? "pass" : "fail")">
+                                                            @att.ScorePercentage% (@(att.IsPassed ? "Pass" : "Fail")) — @att.CompletedAt?.ToString("MM/dd HH:mm")
+                                                        </span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+
+                                        <div class="item-card-footer">
+                                            <button type="button" class="btn-primary"
+                                                    disabled="@(completedAttempts.Count >= quiz.MaxAttempts)"
+                                                    @onclick="() => StartQuizAttempt(quiz.Id)">
+                                                @(completedAttempts.Count >= quiz.MaxAttempts ? "Max Attempts Reached" : "▶️ Start Quiz Attempt")
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                <!-- TAB 4: ATTENDANCE & PROGRESS -->
+                @if (activeTab == "attendance")
+                {
+                    <div class="tab-panel">
+                        <div class="attendance-panel-card">
+                            <div class="att-header">
+                                <div>
+                                    <h4>Session Attendance Log</h4>
+                                    <p>Official daily attendance recorded by your course instructor.</p>
+                                </div>
+                                @if (activeProgress != null)
+                                {
+                                    <span class="status-badge graded">Overall Attendance: @activeProgress.AttendancePercentage%</span>
+                                }
+                            </div>
+
+                            @if (!myAttendance.Any())
+                            {
+                                <p class="muted-note">No attendance sessions have been recorded for you in this course yet.</p>
+                            }
+                            else
+                            {
+                                <table class="att-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Session Date</th>
+                                            <th>Attendance Status</th>
+                                            <th>Instructor Remarks</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var rec in myAttendance)
+                                        {
+                                            <tr>
+                                                <td><strong>@rec.SessionDate.ToString("MMMM dd, yyyy")</strong></td>
+                                                <td>
+                                                    <span class="att-status-pill @rec.Status.ToString().ToLower()">
+                                                        @rec.Status
+                                                    </span>
+                                                </td>
+                                                <td>@(string.IsNullOrWhiteSpace(rec.Remarks) ? "—" : rec.Remarks)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
 </div>
+
+<!-- Assignment Submission Centered Modal -->
+@if (isSubmissionModalOpen && activeAssignmentForSubmit != null)
+{
+    <div class="modal-overlay" @onclick="() => isSubmissionModalOpen = false">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <h3>Submit Assignment — @activeAssignmentForSubmit.Title</h3>
+                    <span class="modal-sub">Max Score: @activeAssignmentForSubmit.MaxScore pts · Due: @activeAssignmentForSubmit.DueDate.ToString("yyyy-MM-dd HH:mm")</span>
+                </div>
+                <button type="button" class="modal-close" @onclick="() => isSubmissionModalOpen = false">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Your Written Response / Solution *</label>
+                    <textarea class="form-control textarea" rows="6"
+                              placeholder="Write your assignment answer, code explanation, or project summary..."
+                              @bind="submissionContent"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Attachment / Repository Link (Optional)</label>
+                    <input type="text" class="form-control"
+                           placeholder="https://github.com/... or Google Drive document link"
+                           @bind="submissionAttachmentUrl" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" @onclick="() => isSubmissionModalOpen = false">Cancel</button>
+                    <button type="button" class="btn-primary" disabled="@isSubmittingAssignment" @onclick="SubmitAssignmentWork">
+                        @(isSubmittingAssignment ? "Submitting..." : "Submit Assignment")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Interactive Quiz Runner Centered Modal -->
+@if (isQuizRunnerOpen && activeQuizDetails != null && activeAttempt != null)
+{
+    <div class="modal-overlay">
+        <div class="modal-card modal-card-xl" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <h3>@activeQuizDetails.Title</h3>
+                    <span class="modal-sub">@activeQuizDetails.Description · Pass Target: @activeQuizDetails.PassPercentage%</span>
+                </div>
+                <button type="button" class="modal-close" @onclick="() => isQuizRunnerOpen = false">&times;</button>
+            </div>
+            <div class="modal-body">
+                @if (!activeQuizDetails.Questions.Any())
+                {
+                    <p class="muted-note">This quiz does not contain any questions yet.</p>
+                }
+                else
+                {
+                    <div class="quiz-questions-runner">
+                        @foreach (var q in activeQuizDetails.Questions.OrderBy(x => x.SortOrder))
+                        {
+                            selectedQuizAnswers.TryGetValue(q.Id, out var chosenOptionId);
+                            <div class="runner-question-card">
+                                <div class="rq-header">
+                                    <strong>Question @q.SortOrder: @q.QuestionText</strong>
+                                    <span class="code-pill">@q.Points pts</span>
+                                </div>
+                                <div class="rq-options">
+                                    @foreach (var opt in q.Options)
+                                    {
+                                        var isChosen = chosenOptionId == opt.Id;
+                                        <label class="rq-option @(isChosen ? "chosen" : "")">
+                                            <input type="radio" name="q_@q.Id"
+                                                   checked="@isChosen"
+                                                   @onchange="() => selectedQuizAnswers[q.Id] = opt.Id" />
+                                            <span>@opt.OptionText</span>
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" @onclick="() => isQuizRunnerOpen = false">Cancel</button>
+                    <button type="button" class="btn-primary" disabled="@isSubmittingQuiz" @onclick="SubmitQuizAttempt">
+                        @(isSubmittingQuiz ? "Grading Quiz..." : "Submit Quiz Attempt")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<EnrollmentListDto> myEnrollments = new();
+    private List<CourseListDto> allCourses = new();
+    private EnrollmentListDto? selectedCourse;
+    private StudentCourseProgressDto? activeProgress;
+
+    private List<LessonListDto> courseLessons = new();
+    private HashSet<int> completedLessonIds = new();
+    private LessonDetailDto? selectedLessonDetail;
+    private bool isCompletingLesson = false;
+
+    private List<AssignmentListDto> courseAssignments = new();
+    private Dictionary<int, SubmissionListDto> mySubmissions = new();
+
+    private List<QuizListDto> courseQuizzes = new();
+    private Dictionary<int, List<QuizAttemptResultDto>> myQuizAttempts = new();
+
+    private List<AttendanceRecordDto> myAttendance = new();
+
+    private string activeTab = "lessons";
+    private bool isInitialLoading = true;
+    private bool showCatalog = false;
+    private string? statusMessage;
+    private bool isError = false;
+
+    // Assignment Submission Modal
+    private bool isSubmissionModalOpen = false;
+    private bool isSubmittingAssignment = false;
+    private AssignmentListDto? activeAssignmentForSubmit;
+    private string submissionContent = string.Empty;
+    private string? submissionAttachmentUrl;
+
+    // Quiz Runner Modal
+    private bool isQuizRunnerOpen = false;
+    private bool isSubmittingQuiz = false;
+    private QuizDetailsDto? activeQuizDetails;
+    private QuizAttemptResultDto? activeAttempt;
+    private Dictionary<int, int> selectedQuizAnswers = new();
+
+    private IEnumerable<CourseListDto> AvailableCourses =>
+        allCourses.Where(c => c.IsPublished && !myEnrollments.Any(e => e.CourseId == c.Id));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPortalData();
+    }
+
+    private async Task LoadPortalData()
+    {
+        isInitialLoading = true;
+        try
+        {
+            myEnrollments = await Http.GetFromJsonAsync<List<EnrollmentListDto>>("api/enrollments/my-enrollments") ?? new();
+            allCourses = await Http.GetFromJsonAsync<List<CourseListDto>>("api/courses") ?? new();
+
+            if (myEnrollments.Any())
+            {
+                await SelectCourse(myEnrollments.First());
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Failed to load student workspace: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isInitialLoading = false;
+        }
+    }
+
+    private async Task SelfEnrollInCourse(int courseId)
+    {
+        try
+        {
+            var resp = await Http.PostAsync($"api/enrollments/self-enroll/{courseId}", null);
+            if (resp.IsSuccessStatusCode)
+            {
+                var created = await resp.Content.ReadFromJsonAsync<EnrollmentListDto>();
+                statusMessage = "Successfully enrolled in course!";
+                isError = false;
+                myEnrollments = await Http.GetFromJsonAsync<List<EnrollmentListDto>>("api/enrollments/my-enrollments") ?? new();
+                if (created != null)
+                {
+                    await SelectCourse(created);
+                }
+            }
+            else
+            {
+                var err = await resp.Content.ReadAsStringAsync();
+                statusMessage = $"Enrollment failed: {err}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error enrolling: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private async Task SelectCourse(EnrollmentListDto enrollment)
+    {
+        selectedCourse = enrollment;
+        selectedLessonDetail = null;
+        await RefreshCourseWorkspace(enrollment.CourseId);
+    }
+
+    private async Task RefreshCourseWorkspace(int courseId)
+    {
+        try
+        {
+            activeProgress = await Http.GetFromJsonAsync<StudentCourseProgressDto>($"api/analytics/progress/course/{courseId}/my-progress");
+        }
+        catch { }
+
+        try
+        {
+            courseLessons = await Http.GetFromJsonAsync<List<LessonListDto>>($"api/lessons/course/{courseId}") ?? new();
+            var doneIds = await Http.GetFromJsonAsync<List<int>>($"api/analytics/lessons/course/{courseId}/completed-ids") ?? new();
+            completedLessonIds = doneIds.ToHashSet();
+
+            if (courseLessons.Any() && selectedLessonDetail == null)
+            {
+                var firstLesson = courseLessons.OrderBy(l => l.sortOrder).First();
+                await SelectLesson(firstLesson.Id);
+            }
+        }
+        catch { }
+
+        try
+        {
+            courseAssignments = await Http.GetFromJsonAsync<List<AssignmentListDto>>($"api/assignments/course/{courseId}") ?? new();
+            mySubmissions.Clear();
+            foreach (var assign in courseAssignments)
+            {
+                var resp = await Http.GetAsync($"api/assignments/{assign.Id}/my-submission");
+                if (resp.IsSuccessStatusCode)
+                {
+                    var sub = await resp.Content.ReadFromJsonAsync<SubmissionListDto>();
+                    if (sub != null) mySubmissions[assign.Id] = sub;
+                }
+            }
+        }
+        catch { }
+
+        try
+        {
+            courseQuizzes = await Http.GetFromJsonAsync<List<QuizListDto>>($"api/quizzes/course/{courseId}") ?? new();
+            myQuizAttempts.Clear();
+            foreach (var quiz in courseQuizzes)
+            {
+                var attempts = await Http.GetFromJsonAsync<List<QuizAttemptResultDto>>($"api/quizzes/{quiz.Id}/my-attempts") ?? new();
+                myQuizAttempts[quiz.Id] = attempts;
+            }
+        }
+        catch { }
+
+        try
+        {
+            myAttendance = await Http.GetFromJsonAsync<List<AttendanceRecordDto>>($"api/analytics/attendance/course/{courseId}/my-attendance") ?? new();
+        }
+        catch { }
+    }
+
+    private async Task SelectLesson(int lessonId)
+    {
+        try
+        {
+            selectedLessonDetail = await Http.GetFromJsonAsync<LessonDetailDto>($"api/lessons/{lessonId}");
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Unable to load lesson content: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private async Task CompleteLesson(int lessonId)
+    {
+        if (selectedCourse == null) return;
+        isCompletingLesson = true;
+        try
+        {
+            var resp = await Http.PostAsync($"api/analytics/lessons/{lessonId}/complete", null);
+            if (resp.IsSuccessStatusCode)
+            {
+                completedLessonIds.Add(lessonId);
+                activeProgress = await Http.GetFromJsonAsync<StudentCourseProgressDto>($"api/analytics/progress/course/{selectedCourse.CourseId}/my-progress");
+                statusMessage = "Lesson marked as completed! Your course progress has been updated.";
+                isError = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Failed to mark lesson complete: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isCompletingLesson = false;
+        }
+    }
+
+    private void OpenSubmissionModal(AssignmentListDto assign, SubmissionListDto? existing)
+    {
+        activeAssignmentForSubmit = assign;
+        submissionContent = existing?.Content ?? string.Empty;
+        submissionAttachmentUrl = existing?.AttachmentUrl;
+        isSubmissionModalOpen = true;
+    }
+
+    private async Task SubmitAssignmentWork()
+    {
+        if (activeAssignmentForSubmit == null || selectedCourse == null || string.IsNullOrWhiteSpace(submissionContent))
+            return;
+
+        isSubmittingAssignment = true;
+        try
+        {
+            var dto = new CreateSubmissionRequestDto(
+                activeAssignmentForSubmit.Id,
+                submissionContent.Trim(),
+                string.IsNullOrWhiteSpace(submissionAttachmentUrl) ? null : submissionAttachmentUrl.Trim()
+            );
+            var resp = await Http.PostAsJsonAsync("api/assignments/submit", dto);
+            if (resp.IsSuccessStatusCode)
+            {
+                var updated = await resp.Content.ReadFromJsonAsync<SubmissionListDto>();
+                if (updated != null)
+                {
+                    mySubmissions[activeAssignmentForSubmit.Id] = updated;
+                }
+                isSubmissionModalOpen = false;
+                activeProgress = await Http.GetFromJsonAsync<StudentCourseProgressDto>($"api/analytics/progress/course/{selectedCourse.CourseId}/my-progress");
+                statusMessage = $"Assignment '{activeAssignmentForSubmit.Title}' submitted successfully!";
+                isError = false;
+            }
+            else
+            {
+                var err = await resp.Content.ReadAsStringAsync();
+                statusMessage = $"Submission failed: {err}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error submitting assignment: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSubmittingAssignment = false;
+        }
+    }
+
+    private async Task StartQuizAttempt(int quizId)
+    {
+        try
+        {
+            var details = await Http.GetFromJsonAsync<QuizDetailsDto>($"api/quizzes/{quizId}");
+            var startResp = await Http.PostAsync($"api/quizzes/{quizId}/start", null);
+            if (!startResp.IsSuccessStatusCode)
+            {
+                var err = await startResp.Content.ReadAsStringAsync();
+                statusMessage = $"Cannot start quiz: {err}";
+                isError = true;
+                return;
+            }
+
+            activeAttempt = await startResp.Content.ReadFromJsonAsync<QuizAttemptResultDto>();
+            activeQuizDetails = details;
+            selectedQuizAnswers.Clear();
+            if (activeQuizDetails != null)
+            {
+                foreach (var q in activeQuizDetails.Questions)
+                {
+                    if (q.Options.Any())
+                    {
+                        selectedQuizAnswers[q.Id] = q.Options.First().Id;
+                    }
+                }
+            }
+            isQuizRunnerOpen = true;
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error starting quiz: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private async Task SubmitQuizAttempt()
+    {
+        if (activeAttempt == null || activeQuizDetails == null) return;
+        isSubmittingQuiz = true;
+        try
+        {
+            var answers = selectedQuizAnswers
+                .Select(kvp => new SubmitQuizAnswerDto(kvp.Key, kvp.Value))
+                .ToList();
+
+            var dto = new SubmitQuizAttemptRequestDto(activeQuizDetails.Id, answers);
+            var resp = await Http.PostAsJsonAsync("api/quizzes/submit", dto);
+            if (resp.IsSuccessStatusCode)
+            {
+                var result = await resp.Content.ReadFromJsonAsync<QuizAttemptResultDto>();
+                isQuizRunnerOpen = false;
+                var attempts = await Http.GetFromJsonAsync<List<QuizAttemptResultDto>>($"api/quizzes/{activeQuizDetails.Id}/my-attempts") ?? new();
+                myQuizAttempts[activeQuizDetails.Id] = attempts;
+
+                if (result != null)
+                {
+                    statusMessage = $"Quiz submitted! Score: {result.ScorePercentage}% — {(result.IsPassed ? "PASSED 🎉" : "Did not meet pass threshold")}";
+                    isError = !result.IsPassed;
+                }
+            }
+            else
+            {
+                var err = await resp.Content.ReadAsStringAsync();
+                statusMessage = $"Failed to submit quiz: {err}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Quiz submission error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSubmittingQuiz = false;
+        }
+    }
+}

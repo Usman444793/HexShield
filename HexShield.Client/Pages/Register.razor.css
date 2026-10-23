@@ -1,7 +1,7 @@
 /* ==========================================================================
    Design Tokens & Local Custom Properties
    ========================================================================== */
-:host {
+.auth-page {
     --primary: #003441;
     --primary-container: #0f4c5c;
     --primary-fixed: #b6ebfe;
@@ -22,8 +22,6 @@
     --on-error-container: #93000a;
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
-    display: block;
-    width: 100%;
 }
 
 /* ==========================================================================

@@ -86,6 +86,15 @@ public class AssignmentController : ApiControllerBase
         return Ok(submissions);
     }
 
+    [HttpGet("{assignmentId:int}/my-submission")]
+    [Authorize(Roles = "Student")]
+    public async Task<ActionResult<SubmissionListDto>> GetMySubmission(int assignmentId)
+    {
+        var submission = await _assignmentService.GetStudentSubmissionAsync(assignmentId, CurrentUserId);
+        if (submission == null) return NotFound();
+        return Ok(submission);
+    }
+
     [HttpPost("submit")]
     [Authorize(Roles = "Student")]
     public async Task<ActionResult<SubmissionListDto>> Submit([FromBody] CreateSubmissionRequestDto dto)

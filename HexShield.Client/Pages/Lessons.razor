@@ -8,39 +8,52 @@
 @using HexShield.Shared.Enums
 @inject HttpClient Http
 @inject NavigationManager Navigation
-<PageTitle>Lesson Management - HexShield</PageTitle>
+
+<PageTitle>Lesson Management | HexShield</PageTitle>
+
 <div class="lessons-container">
+    <div class="course-subnav">
+        <a href="/@BasePortalSegment/courses" class="back-link">← All Courses</a>
+        <div class="subnav-tabs">
+            <a href="/@BasePortalSegment/courses/@CourseId/lessons" class="subnav-tab active">📖 Lessons</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/assignments" class="subnav-tab">📝 Assignments</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/quizzes" class="subnav-tab">⏱️ Quizzes</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/enrollments" class="subnav-tab">👥 Enrollments</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/attendance" class="subnav-tab">📊 Attendance &amp; Progress</a>
+        </div>
+    </div>
+
     <div class="page-header">
         <div>
-            <div class="breadcrumb">
-                <a href="/admin/courses"><i class="fa-solid fa-arrow-left"></i> Back to Courses</a>
-            </div>
-            <h1 class="page-title">Course #@CourseId - Lessons</h1>
-            <p class="page-subtitle">Manage curriculum sequence, lesson content, and media via REST API.</p>
+            <h1 class="page-title">Course #@CourseId — Lessons</h1>
+            <p class="page-subtitle">Manage curriculum sequence, lesson content, and video lecture streams.</p>
         </div>
-        <button class="btn-primary" @onclick="OpenCreateDrawer">
+        <button type="button" class="btn-primary" @onclick="OpenCreateModal">
             <i class="fa-solid fa-plus"></i> Add Lesson
         </button>
     </div>
+
     @if (!string.IsNullOrEmpty(statusMessage))
     {
         <div class="alert @(isError ? "alert-danger" : "alert-success")">
             <span>@statusMessage</span>
-            <button class="alert-close" @onclick="() => statusMessage = null">&times;</button>
+            <button type="button" class="alert-close" @onclick="() => statusMessage = null">&times;</button>
         </div>
     }
+
     <div class="toolbar">
         <div class="search-box">
             <i class="fa-solid fa-magnifying-glass search-icon"></i>
             <input type="text" class="search-input" placeholder="Search lessons by title..." @bind="searchTerm" @bind:event="oninput" />
         </div>
     </div>
+
     <div class="table-card">
         @if (isLoading)
         {
             <div class="loading-state">
                 <i class="fa-solid fa-spinner fa-spin spinner"></i>
-                <p>Fetching lessons from API...</p>
+                <p>Fetching lessons...</p>
             </div>
         }
         else if (!FilteredLessons.Any())
@@ -48,7 +61,7 @@
             <div class="empty-state">
                 <i class="fa-solid fa-book-open empty-icon"></i>
                 <h3>No lessons created yet</h3>
-                <p>Add your first lesson to start building the curriculum for this course.</p>
+                <p>Click "Add Lesson" to start building the curriculum for this course.</p>
             </div>
         }
         else
@@ -57,7 +70,7 @@
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th style="width: 80px;">Order</th>
+                            <th style="width: 110px;">Order</th>
                             <th>Lesson Title</th>
                             <th>Media</th>
                             <th>Status</th>
@@ -70,9 +83,9 @@
                             <tr class="@(activeLessonId == lesson.Id ? "row-selected" : "")">
                                 <td class="font-mono text-bold text-center">
                                     <div class="order-controls">
-                                        <button class="btn-order" @onclick="() => MoveOrder(lesson, -1)" title="Move Up"><i class="fa-solid fa-chevron-up"></i></button>
+                                        <button type="button" class="btn-order" @onclick="() => MoveOrder(lesson, -1)" title="Move Up">▲</button>
                                         <span>#@lesson.sortOrder</span>
-                                        <button class="btn-order" @onclick="() => MoveOrder(lesson, 1)" title="Move Down"><i class="fa-solid fa-chevron-down"></i></button>
+                                        <button type="button" class="btn-order" @onclick="() => MoveOrder(lesson, 1)" title="Move Down">▼</button>
                                     </div>
                                 </td>
                                 <td>
@@ -81,26 +94,27 @@
                                 <td>
                                     @if (!string.IsNullOrEmpty(lesson.VideoUrl))
                                     {
-                                        <span class="badge-media"><i class="fa-solid fa-video"></i> Video</span>
+                                        <span class="badge-media">🎬 Video Stream</span>
                                     }
                                     else
                                     {
-                                        <span class="badge-neutral">Text Only</span>
+                                        <span class="badge-neutral">📄 Reading Material</span>
                                     }
                                 </td>
                                 <td>
-                                    <button class="status-toggle-btn @(lesson.isPublished ? "status-published" : "status-draft")"
+                                    <button type="button"
+                                            class="status-toggle-btn @(lesson.isPublished ? "status-published" : "status-draft")"
                                             @onclick="() => TogglePublishStatus(lesson)">
-                                        @(lesson.isPublished ? "Published" : "Draft")
+                                        @(lesson.isPublished ? "● Published" : "○ Draft")
                                     </button>
                                 </td>
                                 <td class="text-right">
                                     <div class="action-buttons">
-                                        <button class="btn-icon" title="Edit Lesson" @onclick="() => OpenEditDrawer(lesson.Id)">
-                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        <button type="button" class="btn-icon" title="Edit Lesson" @onclick="() => OpenEditModal(lesson.Id)">
+                                            Edit
                                         </button>
-                                        <button class="btn-icon btn-danger-icon" title="Delete Lesson" @onclick="() => ConfirmDelete(lesson.Id, lesson.Title)">
-                                            <i class="fa-solid fa-trash"></i>
+                                        <button type="button" class="btn-icon btn-danger-icon" title="Delete Lesson" @onclick="() => ConfirmDelete(lesson.Id, lesson.Title)">
+                                            Delete
                                         </button>
                                     </div>
                                 </td>
@@ -112,70 +126,76 @@
         }
     </div>
 </div>
+
 @if (isDrawerOpen)
 {
-    <div class="drawer-overlay" @onclick="CloseDrawer"></div>
-    <div class="drawer-panel">
-        <div class="drawer-header">
-            <h2>@(isEditMode ? $"Edit Lesson #{activeLessonId}" : "Add New Lesson")</h2>
-            <button class="drawer-close" @onclick="CloseDrawer">&times;</button>
-        </div>
-        <div class="drawer-body">
-            @if (isFormLoading)
-            {
-                <div class="loading-state">
-                    <i class="fa-solid fa-spinner fa-spin spinner"></i>
-                    <p>Loading lesson details...</p>
-                </div>
-            }
-            else
-            {
-                <EditForm Model="@editorForm" OnValidSubmit="SaveLesson">
-                    <DataAnnotationsValidator />
-                    <div class="form-group">
-                        <label>Lesson Title *</label>
-                        <InputText @bind-Value="editorForm.Title" class="form-control" placeholder="e.g. Lesson 1: Introduction" />
-                        <ValidationMessage For="@(() => editorForm.Title)" />
+    <div class="modal-overlay" @onclick="CloseDrawer">
+        <div class="modal-card-lg" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h2>@(isEditMode ? $"Edit Lesson #{activeLessonId}" : "Add New Lesson")</h2>
+                <button type="button" class="modal-close" @onclick="CloseDrawer">&times;</button>
+            </div>
+            <div class="modal-body">
+                @if (isFormLoading)
+                {
+                    <div class="loading-state">
+                        <i class="fa-solid fa-spinner fa-spin spinner"></i>
+                        <p>Loading lesson details...</p>
                     </div>
-                    <div class="form-group">
-                        <label>Sort Order Index *</label>
-                        <InputNumber @bind-Value="editorForm.SortOrder" class="form-control" />
-                        <ValidationMessage For="@(() => editorForm.SortOrder)" />
-                    </div>
-                    <div class="form-group">
-                        <label>Video Stream URL</label>
-                        <InputText @bind-Value="editorForm.VideoUrl" class="form-control" placeholder="https://vimeo.com/... or video stream link" />
-                        <ValidationMessage For="@(() => editorForm.VideoUrl)" />
-                    </div>
-                    <div class="form-group">
-                        <label>Content / Syllabus Body</label>
-                        <InputTextArea @bind-Value="editorForm.Content" class="form-control textarea" rows="8" placeholder="Detailed content text..." />
-                        <ValidationMessage For="@(() => editorForm.Content)" />
-                    </div>
-                    <div class="drawer-footer">
-                        <button type="button" class="btn-secondary" @onclick="CloseDrawer" disabled="@isSaving">Cancel</button>
-                        <button type="submit" class="btn-primary" disabled="@isSaving">
-                            @(isSaving ? "Saving..." : (isEditMode ? "Update Lesson" : "Create Lesson"))
-                        </button>
-                    </div>
-                </EditForm>
-            }
-        </div>
-    </div>
-}
-@if (isDeleteModalOpen)
-{
-    <div class="modal-overlay">
-        <div class="modal-card">
-            <h3>Confirm Deletion</h3>
-            <p>Are you sure you want to delete lesson <strong>@deleteLessonTitle</strong>?</p>
-            <div class="modal-actions">
-                <button class="btn-secondary" @onclick="() => isDeleteModalOpen = false">Cancel</button>
-                <button class="btn-danger" @onclick="ExecuteDelete">Delete Lesson</button>
+                }
+                else
+                {
+                    <EditForm Model="@editorForm" OnValidSubmit="SaveLesson">
+                        <DataAnnotationsValidator />
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label>Lesson Title *</label>
+                                <InputText @bind-Value="editorForm.Title" class="form-control" placeholder="e.g. Module 1: System Architecture" />
+                                <ValidationMessage For="@(() => editorForm.Title)" />
+                            </div>
+                            <div class="form-group">
+                                <label>Sort Order Index *</label>
+                                <InputNumber @bind-Value="editorForm.SortOrder" class="form-control" />
+                                <ValidationMessage For="@(() => editorForm.SortOrder)" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Video Stream URL (Optional)</label>
+                            <InputText @bind-Value="editorForm.VideoUrl" class="form-control" placeholder="https://vimeo.com/... or video URL" />
+                            <ValidationMessage For="@(() => editorForm.VideoUrl)" />
+                        </div>
+                        <div class="form-group">
+                            <label>Lesson Content / Syllabus Body</label>
+                            <InputTextArea @bind-Value="editorForm.Content" class="form-control textarea" rows="7" placeholder="Write detailed lesson reading material, notes, and instructions..." />
+                            <ValidationMessage For="@(() => editorForm.Content)" />
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn-secondary" @onclick="CloseDrawer" disabled="@isSaving">Cancel</button>
+                            <button type="submit" class="btn-primary" disabled="@isSaving">
+                                @(isSaving ? "Saving..." : (isEditMode ? "Update Lesson" : "Create Lesson"))
+                            </button>
+                        </div>
+                    </EditForm>
+                }
             </div>
         </div>
     </div>
 }
+
+@if (isDeleteModalOpen)
+{
+    <div class="modal-overlay" @onclick="() => isDeleteModalOpen = false">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <h3>Confirm Deletion</h3>
+            <p>Are you sure you want to delete lesson <strong>@deleteLessonTitle</strong>?</p>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" @onclick="() => isDeleteModalOpen = false">Cancel</button>
+                <button type="button" class="btn-danger" @onclick="ExecuteDelete">Delete Lesson</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter] public int CourseId { get; set; }
     private List<LessonListDto> lessons = new();
@@ -192,13 +212,19 @@
     private string deleteLessonTitle = string.Empty;
     private string? statusMessage;
     private bool isError = false;
+
+    private string BasePortalSegment =>
+        Navigation.Uri.Contains("/teacher", StringComparison.OrdinalIgnoreCase) ? "teacher" : "admin";
+
     private IEnumerable<LessonListDto> FilteredLessons => lessons
         .Where(l => string.IsNullOrWhiteSpace(searchTerm) || l.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
         .OrderBy(l => l.sortOrder);
+
     protected override async Task OnInitializedAsync()
     {
         await LoadLessons();
     }
+
     private async Task LoadLessons()
     {
         isLoading = true;
@@ -209,14 +235,15 @@
         }
         catch (Exception ex)
         {
-            ShowStatus($"Failed to load lessons from API: {ex.Message}", true);
+            ShowStatus($"Failed to load lessons: {ex.Message}", true);
         }
         finally
         {
             isLoading = false;
         }
     }
-    private void OpenCreateDrawer()
+
+    private void OpenCreateModal()
     {
         isEditMode = false;
         activeLessonId = null;
@@ -226,7 +253,8 @@
         };
         isDrawerOpen = true;
     }
-    private async Task OpenEditDrawer(int id)
+
+    private async Task OpenEditModal(int id)
     {
         isEditMode = true;
         activeLessonId = id;
@@ -277,14 +305,12 @@
                 );
 
                 var response = await Http.PutAsJsonAsync($"api/lessons/{activeLessonId.Value}", updateDto);
-                if (response.IsSuccessStatusCode)
-                {
-                    ShowStatus("Lesson updated successfully.");
-                }
-                else
+                if (!response.IsSuccessStatusCode)
                 {
                     ShowStatus($"API Error: {response.StatusCode}", true);
+                    return;
                 }
+                ShowStatus("Lesson updated successfully.");
             }
             else
             {
@@ -297,27 +323,26 @@
                 );
 
                 var response = await Http.PostAsJsonAsync("api/lessons", createDto);
-                if (response.IsSuccessStatusCode)
-                {
-                    ShowStatus("Lesson created successfully.");
-                }
-                else
+                if (!response.IsSuccessStatusCode)
                 {
                     ShowStatus($"API Error: {response.StatusCode}", true);
+                    return;
                 }
+                ShowStatus("Lesson created successfully.");
             }
             CloseDrawer();
             await LoadLessons();
         }
         catch (Exception ex)
         {
-            ShowStatus($"HTTP request failed: {ex.Message}", true);
+            ShowStatus($"Request failed: {ex.Message}", true);
         }
         finally
         {
             isSaving = false;
         }
     }
+
     private async Task TogglePublishStatus(LessonListDto lesson)
     {
         try
@@ -353,15 +378,16 @@
             ShowStatus($"Status update error: {ex.Message}", true);
         }
     }
+
     private async Task MoveOrder(LessonListDto lesson, int delta)
     {
-        var currentIndex = lessons.FindIndex(l => l.Id == lesson.Id);
+        var ordered = lessons.OrderBy(l => l.sortOrder).ToList();
+        var currentIndex = ordered.FindIndex(l => l.Id == lesson.Id);
         var targetIndex = currentIndex + delta;
 
-        if (targetIndex < 0 || targetIndex >= lessons.Count) return;
+        if (targetIndex < 0 || targetIndex >= ordered.Count) return;
 
-        var otherLesson = lessons[targetIndex];
-
+        var otherLesson = ordered[targetIndex];
         var reorders = new List<ReorderLessonDto>
         {
             new(lesson.Id, otherLesson.sortOrder),
@@ -429,12 +455,13 @@
         statusMessage = message;
         isError = error;
     }
+
     public class LessonFormModel
     {
         [Required(ErrorMessage = "Lesson title is required.")]
-        [StringLength(100)]
+        [StringLength(150)]
         public string Title { get; set; } = string.Empty;
-        [StringLength(4000)]
+        [StringLength(8000)]
         public string? Content { get; set; }
         [StringLength(500)]
         public string? VideoUrl { get; set; }

@@ -2,7 +2,7 @@
 /* ==========================================================================
    Design Tokens & Local Variables
    ========================================================================== */
-:host {
+.admin-dashboard {
     --primary: #003441;
     --primary-container: #0f4c5c;
     --primary-fixed: #b6ebfe;
@@ -22,7 +22,6 @@
     --outline-variant: #c0c8cb;
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
-    display: block;
     width: 100%;
     font-family: var(--font-sans);
     color: var(--on-surface);

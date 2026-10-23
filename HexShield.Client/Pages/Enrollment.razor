@@ -6,19 +6,28 @@
 @using HexShield.Shared.DTOs
 @using HexShield.Shared.Enums
 @inject HttpClient Http
+@inject NavigationManager Navigation
 
-<PageTitle>Enrollments - Hex Shield</PageTitle>
+<PageTitle>Enrollments &amp; Roster | HexShield</PageTitle>
 
 <div class="enrollments-container">
+    <div class="course-subnav">
+        <a href="/@BasePortalSegment/courses" class="back-link">← All Courses</a>
+        <div class="subnav-tabs">
+            <a href="/@BasePortalSegment/courses/@CourseId/lessons" class="subnav-tab">📖 Lessons</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/assignments" class="subnav-tab">📝 Assignments</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/quizzes" class="subnav-tab">⏱️ Quizzes</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/enrollments" class="subnav-tab active">👥 Enrollments</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/attendance" class="subnav-tab">📊 Attendance &amp; Progress</a>
+        </div>
+    </div>
+
     <div class="page-header">
         <div>
-            <div class="breadcrumb mb-2">
-                <a href="/admin/courses"><i class="fa-solid fa-arrow-left"></i> Back to Courses</a>
-            </div>
-            <h1 class="page-title">Course #@CourseId - Roster & Access</h1>
-            <p class="page-subtitle">Manage student access, status flags, and enrollments.</p>
+            <h1 class="page-title">Course #@CourseId — Student Roster &amp; Access</h1>
+            <p class="page-subtitle">Manage student enrollments, active status flags, and course access.</p>
         </div>
-        <button class="btn-primary" @onclick="() => isEnrollModalOpen = true">
+        <button type="button" class="btn-primary" @onclick="() => isEnrollModalOpen = true">
             <i class="fa-solid fa-user-plus"></i> Enroll Student
         </button>
     </div>
@@ -27,66 +36,83 @@
     {
         <div class="alert @(isError ? "alert-danger" : "alert-success")">
             <span>@statusMessage</span>
-            <button class="alert-close" @onclick="() => statusMessage = null">&times;</button>
+            <button type="button" class="alert-close" @onclick="() => statusMessage = null">&times;</button>
         </div>
     }
 
     <div class="table-card">
         @if (isLoading)
         {
-            <div class="loading-state"><i class="fa-solid fa-spinner fa-spin spinner"></i><p>Loading roster...</p></div>
+            <div class="loading-state">
+                <i class="fa-solid fa-spinner fa-spin spinner"></i>
+                <p>Loading student roster...</p>
+            </div>
         }
         else if (!enrollments.Any())
         {
-            <div class="empty-state"><h3>No students enrolled yet.</h3></div>
+            <div class="empty-state">
+                <h3>No students enrolled in this course yet</h3>
+                <p>Click "Enroll Student" to add a student by their User ID, or let students self-enroll from the Student Portal.</p>
+            </div>
         }
         else
         {
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Student Name</th>
-                        <th>Email</th>
-                        <th>Enrolled Date</th>
-                        <th>Status</th>
-                        <th class="text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in enrollments)
-                    {
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
                         <tr>
-                            <td><strong>@item.StudentName</strong></td>
-                            <td>@item.StudentEmail</td>
-                            <td>@item.EnrolledAt.ToShortDateString()</td>
-                            <td>
-                                <span class="badge status-@item.Status.ToString().ToLower()">@item.Status</span>
-                            </td>
-                            <td class="text-right">
-                                <button class="btn-icon btn-danger-icon" title="Unenroll" @onclick="() => Unenroll(item.Id)">
-                                    <i class="fa-solid fa-user-minus"></i>
-                                </button>
-                            </td>
+                            <th>Student Name</th>
+                            <th>Email</th>
+                            <th>Student User ID</th>
+                            <th>Enrolled Date</th>
+                            <th>Enrollment Status</th>
+                            <th class="text-right">Actions</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in enrollments)
+                        {
+                            <tr>
+                                <td><strong>@item.StudentName</strong></td>
+                                <td>@item.StudentEmail</td>
+                                <td class="font-mono"><small>@item.StudentId</small></td>
+                                <td>@item.EnrolledAt.ToString("yyyy-MM-dd")</td>
+                                <td>
+                                    <select class="status-select status-@item.Status.ToString().ToLower()"
+                                            value="@item.Status"
+                                            @onchange="(e) => ChangeStatus(item.Id, e.Value?.ToString())">
+                                        <option value="@EnrollmentStatus.Active">Active</option>
+                                        <option value="@EnrollmentStatus.Completed">Completed</option>
+                                        <option value="@EnrollmentStatus.Dropped">Dropped</option>
+                                        <option value="@EnrollmentStatus.Suspended">Suspended</option>
+                                    </select>
+                                </td>
+                                <td class="text-right">
+                                    <button type="button" class="btn-icon btn-danger-icon" title="Unenroll" @onclick="() => Unenroll(item.Id)">
+                                        Unenroll
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
     </div>
 </div>
 
 @if (isEnrollModalOpen)
 {
-    <div class="modal-overlay">
-        <div class="modal-card">
-            <h3>Enroll Student</h3>
+    <div class="modal-overlay" @onclick="() => isEnrollModalOpen = false">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <h3>Enroll Student in Course #@CourseId</h3>
             <div class="form-group">
-                <label>Student User ID (GUID)</label>
-                <input type="text" class="form-control" @bind="newStudentId" placeholder="Enter student user ID..." />
+                <label>Student User ID (GUID or Profile ID) *</label>
+                <input type="text" class="form-control" @bind="newStudentId" placeholder="Enter student User ID..." />
             </div>
             <div class="modal-actions">
-                <button class="btn-secondary" @onclick="() => isEnrollModalOpen = false">Cancel</button>
-                <button class="btn-primary" @onclick="SubmitEnrollment">Enroll</button>
+                <button type="button" class="btn-secondary" @onclick="() => isEnrollModalOpen = false">Cancel</button>
+                <button type="button" class="btn-primary" @onclick="SubmitEnrollment">Enroll Student</button>
             </div>
         </div>
     </div>
@@ -100,6 +126,9 @@
     private string newStudentId = string.Empty;
     private string? statusMessage;
     private bool isError;
+
+    private string BasePortalSegment =>
+        Navigation.Uri.Contains("/teacher", StringComparison.OrdinalIgnoreCase) ? "teacher" : "admin";
 
     protected override async Task OnInitializedAsync()
     {
@@ -142,6 +171,33 @@
             {
                 var body = await response.Content.ReadAsStringAsync();
                 statusMessage = $"Failed to enroll: {body}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private async Task ChangeStatus(int enrollmentId, string? statusValue)
+    {
+        if (string.IsNullOrWhiteSpace(statusValue) || !Enum.TryParse<EnrollmentStatus>(statusValue, out var newStatus))
+            return;
+
+        try
+        {
+            var response = await Http.PatchAsJsonAsync($"api/enrollments/{enrollmentId}/status", new UpdateEnrollmentStatusDto(newStatus));
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = $"Enrollment status updated to {newStatus}.";
+                isError = false;
+                await LoadEnrollments();
+            }
+            else
+            {
+                statusMessage = "Failed to update status.";
                 isError = true;
             }
         }

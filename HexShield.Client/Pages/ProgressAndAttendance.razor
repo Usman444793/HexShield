@@ -6,84 +6,142 @@
 @using HexShield.Shared.DTOs
 @using HexShield.Shared.Enums
 @inject HttpClient Http
+@inject NavigationManager Navigation
 
-<PageTitle>Attendance & Progress - HexShield</PageTitle>
+<PageTitle>Attendance &amp; Progress Management | HexShield</PageTitle>
 
 <div class="analytics-container">
+    <div class="course-subnav">
+        <a href="/@BasePortalSegment/courses" class="back-link">← All Courses</a>
+        <div class="subnav-tabs">
+            <a href="/@BasePortalSegment/courses/@CourseId/lessons" class="subnav-tab">📖 Lessons</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/assignments" class="subnav-tab">📝 Assignments</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/quizzes" class="subnav-tab">⏱️ Quizzes</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/enrollments" class="subnav-tab">👥 Enrollments</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/attendance" class="subnav-tab active">📊 Attendance &amp; Progress</a>
+        </div>
+    </div>
+
     <div class="page-header">
         <div>
-            <div class="breadcrumb mb-2">
-                <a href="/admin/courses"><i class="fa-solid fa-arrow-left"></i> Back to Courses</a>
-            </div>
-            <h1 class="page-title">Course #@CourseId - Attendance & Progress</h1>
-            <p class="page-subtitle">Track daily attendance rates and monitor completion benchmarks across students.</p>
+            <h1 class="page-title">Course #@CourseId — Attendance &amp; Progress Management</h1>
+            <p class="page-subtitle">Record daily session attendance and monitor lesson &amp; assignment completion across enrolled students.</p>
         </div>
-        <button class="btn-primary" @onclick="SaveAttendance" disabled="@isSaving">
-            <i class="fa-solid fa-floppy-disk"></i> @(isSaving ? "Saving..." : "Save Attendance")
-        </button>
+        <div class="header-actions">
+            <button type="button" class="btn-secondary" @onclick="MarkAllPresent" disabled="@(!studentRows.Any() || isSaving)">
+                ✓ Mark All Present
+            </button>
+            <button type="button" class="btn-primary" @onclick="SaveAttendance" disabled="@(!studentRows.Any() || isSaving)">
+                <i class="fa-solid fa-floppy-disk"></i> @(isSaving ? "Saving Roll Call..." : "Save Attendance")
+            </button>
+        </div>
     </div>
 
     @if (!string.IsNullOrEmpty(statusMessage))
     {
         <div class="alert @(isError ? "alert-danger" : "alert-success")">
             <span>@statusMessage</span>
-            <button class="alert-close" @onclick="() => statusMessage = null">&times;</button>
+            <button type="button" class="alert-close" @onclick="() => statusMessage = null">&times;</button>
         </div>
     }
 
+    <!-- Summary KPI Row -->
+    <div class="summary-kpi-grid">
+        <div class="summary-kpi-card">
+            <span>ENROLLED STUDENTS</span>
+            <strong>@studentRows.Count</strong>
+        </div>
+        <div class="summary-kpi-card">
+            <span>AVG LESSON COMPLETION</span>
+            <strong>@(studentRows.Any() ? Math.Round(studentRows.Average(s => s.CompletionPercentage), 1) : 0)%</strong>
+        </div>
+        <div class="summary-kpi-card">
+            <span>AVG ATTENDANCE RATE</span>
+            <strong>@(studentRows.Any() ? Math.Round(studentRows.Average(s => s.AttendancePercentage), 1) : 100)%</strong>
+        </div>
+        <div class="summary-kpi-card">
+            <span>SESSION DATE</span>
+            <strong>@selectedDate.ToString("MMM dd, yyyy")</strong>
+        </div>
+    </div>
+
     <div class="filter-bar">
         <div class="form-group inline">
-            <label>Session Date:</label>
+            <label>Roll Call Session Date:</label>
             <input type="date" class="form-control" @bind="selectedDate" @bind:after="LoadRosterAndProgress" />
         </div>
+        <span class="filter-hint">Select any date to view or update attendance records for that session.</span>
     </div>
 
     <div class="table-card">
         @if (isLoading)
         {
-            <div class="loading-state"><i class="fa-solid fa-spinner fa-spin spinner"></i><p>Loading analytics roster...</p></div>
+            <div class="loading-state">
+                <i class="fa-solid fa-spinner fa-spin spinner"></i>
+                <p>Loading student progress &amp; attendance roster...</p>
+            </div>
         }
         else if (!studentRows.Any())
         {
-            <div class="empty-state"><h3>No active students enrolled in this course.</h3></div>
+            <div class="empty-state">
+                <h3>No active students enrolled in this course</h3>
+                <p>Enroll students in the Enrollments tab to begin tracking their attendance and lesson progress.</p>
+            </div>
         }
         else
         {
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Student Name</th>
-                        <th>Lesson Progress</th>
-                        <th>Assignments</th>
-                        <th>Attendance Rate</th>
-                        <th>Today's Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var student in studentRows)
-                    {
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
                         <tr>
-                            <td><strong>@student.StudentName</strong></td>
-                            <td>
-                                <div class="progress-bar-container">
-                                    <div class="progress-bar" style="width: @(student.CompletionPercentage)%"></div>
-                                </div>
-                                <small>@student.CompletedLessons / @student.TotalLessons (@student.CompletionPercentage%)</small>
-                            </td>
-                            <td>@student.SubmittedAssignments / @student.TotalAssignments</td>
-                            <td><strong>@student.AttendancePercentage%</strong></td>
-                            <td>
-                                <select class="form-control select-compact" @bind="student.CurrentAttendanceStatus">
-                                    <option value="@AttendanceStatus.Present">Present</option>
-                                    <option value="@AttendanceStatus.Late">Late</option>
-                                    <option value="@AttendanceStatus.Absent">Absent</option>
-                                    <option value="@AttendanceStatus.Excused">Excused</option>
-                                </select>
-                            </td>
+                            <th>Student Name</th>
+                            <th>Lesson Completion Progress</th>
+                            <th>Assignments Submitted</th>
+                            <th>Overall Attendance Rate</th>
+                            <th>Session Status (@selectedDate.ToString("yyyy-MM-dd"))</th>
+                            <th>Session Remarks</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var student in studentRows)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@student.StudentName</strong>
+                                    <div class="student-id-sub">@student.StudentId</div>
+                                </td>
+                                <td>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar" style="width: @(student.CompletionPercentage)%"></div>
+                                    </div>
+                                    <small>@student.CompletedLessons / @student.TotalLessons lessons (@student.CompletionPercentage%)</small>
+                                </td>
+                                <td>
+                                    <span class="badge-neutral">@student.SubmittedAssignments / @student.TotalAssignments</span>
+                                </td>
+                                <td>
+                                    <strong class="rate-badge @(student.AttendancePercentage >= 75 ? "good" : "warn")">
+                                        @student.AttendancePercentage%
+                                    </strong>
+                                </td>
+                                <td>
+                                    <select class="form-control select-compact" @bind="student.CurrentAttendanceStatus">
+                                        <option value="@AttendanceStatus.Present">Present</option>
+                                        <option value="@AttendanceStatus.Late">Late</option>
+                                        <option value="@AttendanceStatus.Absent">Absent</option>
+                                        <option value="@AttendanceStatus.Excused">Excused</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control remarks-input"
+                                           placeholder="Optional note..."
+                                           @bind="student.CurrentRemarks" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
     </div>
 </div>
@@ -98,9 +156,13 @@
     private string? statusMessage;
     private bool isError;
 
+    private string BasePortalSegment =>
+        Navigation.Uri.Contains("/teacher", StringComparison.OrdinalIgnoreCase) ? "teacher" : "admin";
+
     public record StudentRowVm : StudentCourseProgressDto
     {
         public AttendanceStatus CurrentAttendanceStatus { get; set; } = AttendanceStatus.Present;
+        public string? CurrentRemarks { get; set; }
 
         public StudentRowVm(StudentCourseProgressDto baseDto)
             : base(baseDto.StudentId, baseDto.StudentName, baseDto.TotalLessons, baseDto.CompletedLessons,
@@ -130,6 +192,7 @@
                 if (existingAtt != null)
                 {
                     vm.CurrentAttendanceStatus = existingAtt.Status;
+                    vm.CurrentRemarks = existingAtt.Remarks;
                 }
                 return vm;
             }).ToList();
@@ -145,6 +208,16 @@
         }
     }
 
+    private void MarkAllPresent()
+    {
+        foreach (var row in studentRows)
+        {
+            row.CurrentAttendanceStatus = AttendanceStatus.Present;
+        }
+        statusMessage = "All students marked Present for this session. Click 'Save Attendance' to persist.";
+        isError = false;
+    }
+
     private async Task SaveAttendance()
     {
         isSaving = true;
@@ -154,14 +227,15 @@
                 CourseId,
                 null,
                 selectedDate,
-                studentRows.Select(s => new StudentAttendanceItemDto(s.StudentId, s.CurrentAttendanceStatus, null)).ToList()
+                studentRows.Select(s => new StudentAttendanceItemDto(s.StudentId, s.CurrentAttendanceStatus, s.CurrentRemarks)).ToList()
             );
 
             var response = await Http.PostAsJsonAsync("api/analytics/attendance/bulk", payload);
             if (response.IsSuccessStatusCode)
             {
-                statusMessage = "Attendance saved successfully!";
+                statusMessage = $"Attendance for {selectedDate:yyyy-MM-dd} saved successfully!";
                 isError = false;
+                await LoadRosterAndProgress();
             }
             else
             {

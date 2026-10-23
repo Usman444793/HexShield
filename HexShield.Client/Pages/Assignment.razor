@@ -6,19 +6,28 @@
 @using HexShield.Shared.DTOs
 @using HexShield.Shared.Enums
 @inject HttpClient Http
+@inject NavigationManager Navigation
 
-<PageTitle>Assignments - HexShield</PageTitle>
+<PageTitle>Assignments &amp; Grading | HexShield</PageTitle>
 
 <div class="assignments-container">
+    <div class="course-subnav">
+        <a href="/@BasePortalSegment/courses" class="back-link">← All Courses</a>
+        <div class="subnav-tabs">
+            <a href="/@BasePortalSegment/courses/@CourseId/lessons" class="subnav-tab">📖 Lessons</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/assignments" class="subnav-tab active">📝 Assignments</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/quizzes" class="subnav-tab">⏱️ Quizzes</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/enrollments" class="subnav-tab">👥 Enrollments</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/attendance" class="subnav-tab">📊 Attendance &amp; Progress</a>
+        </div>
+    </div>
+
     <div class="page-header">
         <div>
-            <div class="breadcrumb mb-2">
-                <a href="/admin/courses"><i class="fa-solid fa-arrow-left"></i> Back to Courses</a>
-            </div>
-            <h1 class="page-title">Course #@CourseId - Assignments</h1>
-            <p class="page-subtitle">Manage assignments, track student submissions, and submit grades.</p>
+            <h1 class="page-title">Course #@CourseId — Assignments &amp; Grading</h1>
+            <p class="page-subtitle">Create coursework, review student submissions, and record grades &amp; feedback.</p>
         </div>
-        <button class="btn-primary" @onclick="OpenCreateDrawer">
+        <button type="button" class="btn-primary" @onclick="OpenCreateModal">
             <i class="fa-solid fa-plus"></i> Add Assignment
         </button>
     </div>
@@ -27,89 +36,182 @@
     {
         <div class="alert @(isError ? "alert-danger" : "alert-success")">
             <span>@statusMessage</span>
-            <button class="alert-close" @onclick="() => statusMessage = null">&times;</button>
+            <button type="button" class="alert-close" @onclick="() => statusMessage = null">&times;</button>
         </div>
     }
 
     <div class="table-card">
         @if (isLoading)
         {
-            <div class="loading-state"><i class="fa-solid fa-spinner fa-spin spinner"></i><p>Loading assignments...</p></div>
+            <div class="loading-state">
+                <i class="fa-solid fa-spinner fa-spin spinner"></i>
+                <p>Loading assignments...</p>
+            </div>
         }
         else if (!assignments.Any())
         {
-            <div class="empty-state"><h3>No assignments found for this course.</h3></div>
+            <div class="empty-state">
+                <h3>No assignments created for this course yet</h3>
+                <p>Click "Add Assignment" to publish coursework for enrolled students.</p>
+            </div>
         }
         else
         {
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Due Date</th>
-                        <th>Max Score</th>
-                        <th>Submissions</th>
-                        <th>Status</th>
-                        <th class="text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in assignments)
-                    {
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
                         <tr>
-                            <td><strong>@item.Title</strong></td>
-                            <td>@item.DueDate.ToString("yyyy-MM-dd HH:mm")</td>
-                            <td>@item.MaxScore pts</td>
-                            <td><span class="badge-neutral">@item.SubmissionCount</span></td>
-                            <td>
-                                <span class="badge @(item.IsPublished ? "status-published" : "status-draft")">
-                                    @(item.IsPublished ? "Published" : "Draft")
-                                </span>
-                            </td>
-                            <td class="text-right">
-                                <button class="btn-icon" title="View Submissions" @onclick="() => ViewSubmissions(item.Id)">
-                                    <i class="fa-solid fa-list-check"></i>
-                                </button>
-                                <button class="btn-icon btn-danger-icon" title="Delete" @onclick="() => DeleteAssignment(item.Id)">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </td>
+                            <th>Assignment Title</th>
+                            <th>Due Date</th>
+                            <th>Max Score</th>
+                            <th>Submissions</th>
+                            <th>Status</th>
+                            <th class="text-right">Actions</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in assignments)
+                        {
+                            <tr>
+                                <td><strong>@item.Title</strong></td>
+                                <td>@item.DueDate.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td><span class="badge-neutral">@item.MaxScore pts</span></td>
+                                <td>
+                                    <span class="badge-neutral">@item.SubmissionCount Submitted</span>
+                                </td>
+                                <td>
+                                    <span class="badge @(item.IsPublished ? "status-published" : "status-draft")">
+                                        @(item.IsPublished ? "● Published" : "○ Draft")
+                                    </span>
+                                </td>
+                                <td class="text-right">
+                                    <div class="action-buttons">
+                                        <button type="button" class="btn-subaction" @onclick="() => ViewSubmissions(item)">
+                                            📋 Submissions &amp; Grade (@item.SubmissionCount)
+                                        </button>
+                                        <button type="button" class="btn-icon btn-danger-icon" title="Delete" @onclick="() => DeleteAssignment(item.Id)">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
     </div>
 </div>
 
+<!-- Create Assignment Centered Modal -->
 @if (isDrawerOpen)
 {
-    <div class="drawer-overlay" @onclick="() => isDrawerOpen = false"></div>
-    <div class="drawer-panel">
-        <div class="drawer-header">
-            <h2>Create New Assignment</h2>
-            <button class="drawer-close" @onclick="() => isDrawerOpen = false">&times;</button>
+    <div class="modal-overlay" @onclick="() => isDrawerOpen = false">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h2>Create New Assignment</h2>
+                <button type="button" class="modal-close" @onclick="() => isDrawerOpen = false">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Assignment Title *</label>
+                    <input type="text" class="form-control" @bind="newTitle" placeholder="e.g. Midterm Architecture Report" />
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>Due Date *</label>
+                        <input type="datetime-local" class="form-control" @bind="newDueDate" />
+                    </div>
+                    <div class="form-group">
+                        <label>Max Score (Points) *</label>
+                        <input type="number" class="form-control" @bind="newMaxScore" min="1" max="1000" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Instructions &amp; Rubric</label>
+                    <textarea class="form-control textarea" rows="5" @bind="newDescription" placeholder="Provide detailed submission instructions and grading criteria..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" @onclick="() => isDrawerOpen = false">Cancel</button>
+                    <button type="button" class="btn-primary" @onclick="CreateAssignment">Create Assignment</button>
+                </div>
+            </div>
         </div>
-        <div class="drawer-body">
-            <div class="form-group">
-                <label>Title *</label>
-                <input type="text" class="form-control" @bind="newTitle" placeholder="e.g. Midterm Project" />
+    </div>
+}
+
+<!-- View & Grade Submissions Centered Modal -->
+@if (isSubmissionsModalOpen && selectedAssignment != null)
+{
+    <div class="modal-overlay" @onclick="CloseSubmissionsModal">
+        <div class="modal-card modal-card-xl" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <h2>Submissions — @selectedAssignment.Title</h2>
+                    <span class="modal-subtitle">Max Score: @selectedAssignment.MaxScore pts · Due: @selectedAssignment.DueDate.ToString("yyyy-MM-dd HH:mm")</span>
+                </div>
+                <button type="button" class="modal-close" @onclick="CloseSubmissionsModal">&times;</button>
             </div>
-            <div class="form-group">
-                <label>Due Date *</label>
-                <input type="datetime-local" class="form-control" @bind="newDueDate" />
-            </div>
-            <div class="form-group">
-                <label>Max Score *</label>
-                <input type="number" class="form-control" @bind="newMaxScore" />
-            </div>
-            <div class="form-group">
-                <label>Description</label>
-                <textarea class="form-control textarea" rows="5" @bind="newDescription"></textarea>
-            </div>
-            <div class="drawer-footer">
-                <button class="btn-secondary" @onclick="() => isDrawerOpen = false">Cancel</button>
-                <button class="btn-primary" @onclick="CreateAssignment">Save Assignment</button>
+            <div class="modal-body">
+                @if (isSubmissionsLoading)
+                {
+                    <div class="loading-state">
+                        <p>Loading student submissions...</p>
+                    </div>
+                }
+                else if (!submissions.Any())
+                {
+                    <div class="empty-state">
+                        <h3>No student submissions yet</h3>
+                        <p>Once enrolled students submit their work, their answers and attachments will appear here for grading.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="submissions-list">
+                        @foreach (var sub in submissions)
+                        {
+                            <div class="submission-card">
+                                <div class="submission-header">
+                                    <div>
+                                        <strong>@sub.StudentName</strong>
+                                        <span class="sub-date">Submitted @sub.SubmittedAt.ToString("yyyy-MM-dd HH:mm")</span>
+                                    </div>
+                                    <span class="badge @(sub.Status == SubmissionStatus.Graded ? "status-published" : "status-draft")">
+                                        @sub.Status @(sub.Grade.HasValue ? $"({sub.Grade}/{selectedAssignment.MaxScore})" : "")
+                                    </span>
+                                </div>
+
+                                <div class="submission-content-box">
+                                    <label>Student Response:</label>
+                                    <p>@(string.IsNullOrWhiteSpace(sub.Content) ? "No text content provided." : sub.Content)</p>
+                                    @if (!string.IsNullOrWhiteSpace(sub.AttachmentUrl))
+                                    {
+                                        <a href="@sub.AttachmentUrl" target="_blank" class="attachment-link">🔗 View Attachment (@sub.AttachmentUrl)</a>
+                                    }
+                                </div>
+
+                                <div class="grading-row">
+                                    <div class="grade-input-group">
+                                        <label>Score (0 - @selectedAssignment.MaxScore)</label>
+                                        <input type="number" class="form-control" min="0" max="@selectedAssignment.MaxScore" step="0.5"
+                                               @bind="sub.EditGrade" />
+                                    </div>
+                                    <div class="feedback-input-group">
+                                        <label>Instructor Feedback</label>
+                                        <input type="text" class="form-control" placeholder="Constructive feedback for student..."
+                                               @bind="sub.EditFeedback" />
+                                    </div>
+                                    <button type="button" class="btn-primary grade-save-btn"
+                                            disabled="@sub.IsGrading"
+                                            @onclick="() => SaveGrade(sub)">
+                                        @(sub.IsGrading ? "Saving..." : "Save Grade")
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
             </div>
         </div>
     </div>
@@ -127,8 +229,33 @@
     private DateTime newDueDate = DateTime.UtcNow.AddDays(7);
     private decimal newMaxScore = 100;
 
+    private bool isSubmissionsModalOpen = false;
+    private bool isSubmissionsLoading = false;
+    private AssignmentListDto? selectedAssignment;
+    private List<SubmissionRowVm> submissions = new();
+
     private string? statusMessage;
     private bool isError;
+
+    private string BasePortalSegment =>
+        Navigation.Uri.Contains("/teacher", StringComparison.OrdinalIgnoreCase) ? "teacher" : "admin";
+
+    public class SubmissionRowVm
+    {
+        public int Id { get; set; }
+        public int AssignmentId { get; set; }
+        public string StudentId { get; set; } = string.Empty;
+        public string StudentName { get; set; } = string.Empty;
+        public string? Content { get; set; }
+        public string? AttachmentUrl { get; set; }
+        public DateTime SubmittedAt { get; set; }
+        public decimal? Grade { get; set; }
+        public string? Feedback { get; set; }
+        public SubmissionStatus Status { get; set; }
+        public decimal EditGrade { get; set; }
+        public string? EditFeedback { get; set; }
+        public bool IsGrading { get; set; }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -153,7 +280,7 @@
         }
     }
 
-    private void OpenCreateDrawer()
+    private void OpenCreateModal()
     {
         newTitle = string.Empty;
         newDescription = null;
@@ -209,8 +336,83 @@
         }
     }
 
-    private void ViewSubmissions(int assignmentId)
+    private async Task ViewSubmissions(AssignmentListDto assignment)
     {
-        // Navigate or open sub-modal to view/grade submissions
+        selectedAssignment = assignment;
+        isSubmissionsModalOpen = true;
+        isSubmissionsLoading = true;
+        submissions.Clear();
+        try
+        {
+            var list = await Http.GetFromJsonAsync<List<SubmissionListDto>>($"api/assignments/{assignment.Id}/submissions") ?? new();
+            submissions = list.Select(s => new SubmissionRowVm
+            {
+                Id = s.Id,
+                AssignmentId = s.AssignmentId,
+                StudentId = s.StudentId,
+                StudentName = s.StudentName,
+                Content = s.Content,
+                AttachmentUrl = s.AttachmentUrl,
+                SubmittedAt = s.SubmittedAt,
+                Grade = s.Status == SubmissionStatus.Graded ? s.Grade : null,
+                Feedback = s.Feedback,
+                Status = s.Status,
+                EditGrade = s.Status == SubmissionStatus.Graded ? s.Grade : assignment.MaxScore,
+                EditFeedback = s.Feedback
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Failed to load submissions: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSubmissionsLoading = false;
+        }
+    }
+
+    private async Task SaveGrade(SubmissionRowVm sub)
+    {
+        if (selectedAssignment == null) return;
+        sub.IsGrading = true;
+        try
+        {
+            var dto = new GradeSubmissionRequestDto(sub.EditGrade, sub.EditFeedback);
+            var response = await Http.PostAsJsonAsync($"api/assignments/submissions/{sub.Id}/grades", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                var updated = await response.Content.ReadFromJsonAsync<SubmissionListDto>();
+                if (updated != null)
+                {
+                    sub.Grade = updated.Grade;
+                    sub.Feedback = updated.Feedback;
+                    sub.Status = updated.Status;
+                }
+                statusMessage = $"Graded submission for {sub.StudentName} ({sub.EditGrade}/{selectedAssignment.MaxScore}).";
+                isError = false;
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                statusMessage = $"Grading failed: {err}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Grading error: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            sub.IsGrading = false;
+        }
+    }
+
+    private void CloseSubmissionsModal()
+    {
+        isSubmissionsModalOpen = false;
+        selectedAssignment = null;
     }
 }

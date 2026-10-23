@@ -1,7 +1,7 @@
 /* ==========================================================================
    Design Tokens & Theme Variables
    ========================================================================== */
-:host {
+.admin-layout {
     --primary: #003441;
     --primary-container: #0f4c5c;
     --on-primary: #ffffff;
@@ -22,20 +22,11 @@
     --outline-variant: #c0c8cb;
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
-    display: block;
+    display: flex;
     width: 100vw;
     height: 100vh;
     overflow: hidden;
     font-family: var(--font-sans);
-}
-
-/* ==========================================================================
-   Layout Shell
-   ========================================================================== */
-.admin-layout {
-    display: flex;
-    width: 100%;
-    height: 100%;
     background-color: var(--surface);
     color: var(--on-surface);
 }

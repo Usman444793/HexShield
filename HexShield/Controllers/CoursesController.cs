@@ -13,7 +13,7 @@ namespace HexShield.Controllers;
 [ApiController]
 [Route("api/courses")]          // primary route used by client
 [Route("api/admin/courses")]    // legacy / admin-panel alias
-[Authorize(Roles = "Admin,Teacher")]
+[Authorize]
 public class CoursesController : ApiControllerBase
 {
     private readonly ICourseService _courseService;
@@ -40,6 +40,7 @@ public class CoursesController : ApiControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Teacher")]
     public async Task<ActionResult<CourseDetailsDto>> CreateCourse([FromBody] CreateCourseRequestDto dto)
     {
         var userId = GetCurrentUserId();
@@ -49,6 +50,7 @@ public class CoursesController : ApiControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin,Teacher")]
     public async Task<ActionResult<CourseDetailsDto>> UpdateCourse(int id, [FromBody] UpdateCourseRequestDto dto)
     {
         var userId = GetCurrentUserId();
@@ -58,6 +60,7 @@ public class CoursesController : ApiControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> DeleteCourse(int id)
     {
         var userId = GetCurrentUserId();
@@ -68,6 +71,7 @@ public class CoursesController : ApiControllerBase
     }
 
     [HttpPut("{id:int}/publish")]
+    [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> PublishCourse(int id, [FromBody] PublishCourseRequestDto dto)
     {
         var userId = GetCurrentUserId();

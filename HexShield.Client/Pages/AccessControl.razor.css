@@ -1,7 +1,7 @@
 /* ==========================================================================
    Design Tokens & Local Variables
    ========================================================================== */
-:host {
+.container-fluid {
     --primary: #003441;
     --primary-container: #0f4c5c;
     --primary-fixed: #b6ebfe;

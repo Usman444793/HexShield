@@ -6,19 +6,28 @@
 @using HexShield.Shared.DTOs
 @using HexShield.Shared.Enums
 @inject HttpClient Http
+@inject NavigationManager Navigation
 
-<PageTitle>Quizzes - HexShield</PageTitle>
+<PageTitle>Quizzes &amp; Assessments | HexShield</PageTitle>
 
 <div class="quizzes-container">
+    <div class="course-subnav">
+        <a href="/@BasePortalSegment/courses" class="back-link">← All Courses</a>
+        <div class="subnav-tabs">
+            <a href="/@BasePortalSegment/courses/@CourseId/lessons" class="subnav-tab">📖 Lessons</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/assignments" class="subnav-tab">📝 Assignments</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/quizzes" class="subnav-tab active">⏱️ Quizzes</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/enrollments" class="subnav-tab">👥 Enrollments</a>
+            <a href="/@BasePortalSegment/courses/@CourseId/attendance" class="subnav-tab">📊 Attendance &amp; Progress</a>
+        </div>
+    </div>
+
     <div class="page-header">
         <div>
-            <div class="breadcrumb mb-2">
-                <a href="/admin/courses"><i class="fa-solid fa-arrow-left"></i> Back to Courses</a>
-            </div>
-            <h1 class="page-title">Course #@CourseId - Quizzes</h1>
-            <p class="page-subtitle">Configure assessments, time limits, and view question sets.</p>
+            <h1 class="page-title">Course #@CourseId — Quizzes &amp; Question Bank</h1>
+            <p class="page-subtitle">Configure timed assessments, passing score thresholds, and multiple-choice questions.</p>
         </div>
-        <button class="btn-primary" @onclick="() => isModalOpen = true">
+        <button type="button" class="btn-primary" @onclick="() => isModalOpen = true">
             <i class="fa-solid fa-plus"></i> Create Quiz
         </button>
     </div>
@@ -27,78 +36,186 @@
     {
         <div class="alert @(isError ? "alert-danger" : "alert-success")">
             <span>@statusMessage</span>
-            <button class="alert-close" @onclick="() => statusMessage = null">&times;</button>
+            <button type="button" class="alert-close" @onclick="() => statusMessage = null">&times;</button>
         </div>
     }
 
     <div class="table-card">
         @if (isLoading)
         {
-            <div class="loading-state"><i class="fa-solid fa-spinner fa-spin spinner"></i><p>Loading quizzes...</p></div>
+            <div class="loading-state">
+                <i class="fa-solid fa-spinner fa-spin spinner"></i>
+                <p>Loading quizzes...</p>
+            </div>
         }
         else if (!quizzes.Any())
         {
-            <div class="empty-state"><h3>No quizzes created for this course.</h3></div>
+            <div class="empty-state">
+                <h3>No quizzes created for this course yet</h3>
+                <p>Click "Create Quiz" to add a timed assessment and build its question bank.</p>
+            </div>
         }
         else
         {
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Time Limit</th>
-                        <th>Max Attempts</th>
-                        <th>Pass Target</th>
-                        <th>Questions</th>
-                        <th class="text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var quiz in quizzes)
-                    {
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
                         <tr>
-                            <td><strong>@quiz.Title</strong></td>
-                            <td>@quiz.TimeLimitMinutes mins</td>
-                            <td>@quiz.MaxAttempts</td>
-                            <td>@quiz.PassPercentage%</td>
-                            <td><span class="badge-neutral">@quiz.QuestionCount Questions</span></td>
-                            <td class="text-right">
-                                <button class="btn-icon btn-danger-icon" title="Delete" @onclick="() => DeleteQuiz(quiz.Id)">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </td>
+                            <th>Quiz Title</th>
+                            <th>Time Limit</th>
+                            <th>Max Attempts</th>
+                            <th>Pass Target</th>
+                            <th>Questions</th>
+                            <th class="text-right">Actions</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var quiz in quizzes)
+                        {
+                            <tr>
+                                <td><strong>@quiz.Title</strong></td>
+                                <td>@quiz.TimeLimitMinutes mins</td>
+                                <td>@quiz.MaxAttempts</td>
+                                <td>@quiz.PassPercentage%</td>
+                                <td><span class="badge-neutral">@quiz.QuestionCount Questions</span></td>
+                                <td class="text-right">
+                                    <div class="action-buttons">
+                                        <button type="button" class="btn-subaction" @onclick="() => OpenQuestionsModal(quiz.Id)">
+                                            ❓ Manage Questions (@quiz.QuestionCount)
+                                        </button>
+                                        <button type="button" class="btn-icon btn-danger-icon" title="Delete" @onclick="() => DeleteQuiz(quiz.Id)">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
     </div>
 </div>
 
+<!-- Create Quiz Centered Modal -->
 @if (isModalOpen)
 {
-    <div class="modal-overlay">
-        <div class="modal-card">
-            <h3>New Quiz Config</h3>
-            <div class="form-group">
-                <label>Title *</label>
-                <input type="text" class="form-control" @bind="newTitle" placeholder="e.g. Chapter 1 Knowledge Check" />
+    <div class="modal-overlay" @onclick="() => isModalOpen = false">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Create New Quiz</h3>
+                <button type="button" class="modal-close" @onclick="() => isModalOpen = false">&times;</button>
             </div>
-            <div class="form-group">
-                <label>Time Limit (Minutes)</label>
-                <input type="number" class="form-control" @bind="newTimeLimit" />
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Quiz Title *</label>
+                    <input type="text" class="form-control" @bind="newTitle" placeholder="e.g. Module 1 Competency Check" />
+                </div>
+                <div class="form-group">
+                    <label>Instructions</label>
+                    <input type="text" class="form-control" @bind="newInstructions" placeholder="Answer all multiple-choice questions before time expires." />
+                </div>
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label>Time Limit (Min)</label>
+                        <input type="number" class="form-control" @bind="newTimeLimit" min="1" max="300" />
+                    </div>
+                    <div class="form-group">
+                        <label>Max Attempts</label>
+                        <input type="number" class="form-control" @bind="newMaxAttempts" min="1" max="20" />
+                    </div>
+                    <div class="form-group">
+                        <label>Pass Target (%)</label>
+                        <input type="number" class="form-control" @bind="newPassPercentage" min="1" max="100" />
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" @onclick="() => isModalOpen = false">Cancel</button>
+                    <button type="button" class="btn-primary" @onclick="CreateQuiz">Save Quiz</button>
+                </div>
             </div>
-            <div class="form-group">
-                <label>Max Attempts</label>
-                <input type="number" class="form-control" @bind="newMaxAttempts" />
+        </div>
+    </div>
+}
+
+<!-- Manage Questions Centered Modal -->
+@if (isQuestionsModalOpen && activeQuizDetails != null)
+{
+    <div class="modal-overlay" @onclick="CloseQuestionsModal">
+        <div class="modal-card modal-card-xl" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <h3>Question Bank — @activeQuizDetails.Title</h3>
+                    <span class="modal-subtitle">@activeQuizDetails.Questions.Count Questions · Pass Target: @activeQuizDetails.PassPercentage%</span>
+                </div>
+                <button type="button" class="modal-close" @onclick="CloseQuestionsModal">&times;</button>
             </div>
-            <div class="form-group">
-                <label>Pass Percentage Target (%)</label>
-                <input type="number" class="form-control" @bind="newPassPercentage" />
-            </div>
-            <div class="modal-actions">
-                <button class="btn-secondary" @onclick="() => isModalOpen = false">Cancel</button>
-                <button class="btn-primary" @onclick="CreateQuiz">Save Quiz</button>
+            <div class="modal-body">
+                <!-- Add New Question Form -->
+                <div class="question-builder-box">
+                    <h4>＋ Add Multiple-Choice Question</h4>
+                    <div class="form-row-question">
+                        <div class="form-group">
+                            <label>Question Prompt *</label>
+                            <input type="text" class="form-control" @bind="newQuestionText" placeholder="Enter question prompt..." />
+                        </div>
+                        <div class="form-group">
+                            <label>Points *</label>
+                            <input type="number" class="form-control" @bind="newQuestionPoints" min="1" max="100" />
+                        </div>
+                    </div>
+
+                    <div class="options-grid">
+                        @for (int i = 0; i < newOptions.Count; i++)
+                        {
+                            var idx = i;
+                            <div class="option-input-row @(correctOptionIndex == idx ? "option-correct" : "")">
+                                <input type="radio" name="correctOpt"
+                                       checked="@(correctOptionIndex == idx)"
+                                       @onchange="() => correctOptionIndex = idx" />
+                                <input type="text" class="form-control"
+                                       placeholder="Option @(idx + 1) text..."
+                                       @bind="newOptions[idx]" />
+                                <span class="opt-tag">@(correctOptionIndex == idx ? "✓ Correct" : "Choice")</span>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="builder-actions">
+                        <button type="button" class="btn-primary" @onclick="AddQuestionToQuiz" disabled="@isAddingQuestion">
+                            @(isAddingQuestion ? "Adding..." : "Add Question to Quiz")
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Existing Questions List -->
+                <div class="existing-questions">
+                    <h4>Existing Questions (@activeQuizDetails.Questions.Count)</h4>
+                    @if (!activeQuizDetails.Questions.Any())
+                    {
+                        <p class="muted-text">No questions added yet. Use the form above to add questions.</p>
+                    }
+                    else
+                    {
+                        @foreach (var q in activeQuizDetails.Questions.OrderBy(x => x.SortOrder))
+                        {
+                            <div class="question-item-card">
+                                <div class="q-top">
+                                    <strong>Q@(q.SortOrder). @q.QuestionText</strong>
+                                    <span class="badge-neutral">@q.Points pts</span>
+                                </div>
+                                <div class="q-options">
+                                    @foreach (var opt in q.Options)
+                                    {
+                                        <span class="q-opt-pill @(opt.IsCorrect ? "correct" : "")">
+                                            @(opt.IsCorrect ? "✓ " : "")@opt.OptionText
+                                        </span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
             </div>
         </div>
     </div>
@@ -110,11 +227,24 @@
     private bool isLoading = true;
     private bool isModalOpen = false;
     private string newTitle = string.Empty;
+    private string newInstructions = "Read each question carefully and select the best answer.";
     private int newTimeLimit = 30;
-    private int newMaxAttempts = 1;
+    private int newMaxAttempts = 3;
     private decimal newPassPercentage = 70.0m;
+
+    private bool isQuestionsModalOpen = false;
+    private bool isAddingQuestion = false;
+    private QuizDetailsDto? activeQuizDetails;
+    private string newQuestionText = string.Empty;
+    private decimal newQuestionPoints = 10;
+    private List<string> newOptions = new() { "", "", "", "" };
+    private int correctOptionIndex = 0;
+
     private string? statusMessage;
     private bool isError;
+
+    private string BasePortalSegment =>
+        Navigation.Uri.Contains("/teacher", StringComparison.OrdinalIgnoreCase) ? "teacher" : "admin";
 
     protected override async Task OnInitializedAsync()
     {
@@ -145,7 +275,7 @@
 
         try
         {
-            var dto = new CreateQuizRequestDto(CourseId, null, newTitle.Trim(), "Default instructions", newTimeLimit, newMaxAttempts, newPassPercentage);
+            var dto = new CreateQuizRequestDto(CourseId, null, newTitle.Trim(), newInstructions.Trim(), newTimeLimit, newMaxAttempts, newPassPercentage);
             var response = await Http.PostAsJsonAsync("api/quizzes", dto);
             if (response.IsSuccessStatusCode)
             {
@@ -185,5 +315,97 @@
             statusMessage = $"Error: {ex.Message}";
             isError = true;
         }
+    }
+
+    private async Task OpenQuestionsModal(int quizId)
+    {
+        try
+        {
+            activeQuizDetails = await Http.GetFromJsonAsync<QuizDetailsDto>($"api/quizzes/{quizId}");
+            if (activeQuizDetails != null)
+            {
+                ResetQuestionForm();
+                isQuestionsModalOpen = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Failed to load quiz questions: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private void ResetQuestionForm()
+    {
+        newQuestionText = string.Empty;
+        newQuestionPoints = 10;
+        newOptions = new List<string> { "", "", "", "" };
+        correctOptionIndex = 0;
+    }
+
+    private async Task AddQuestionToQuiz()
+    {
+        if (activeQuizDetails == null || string.IsNullOrWhiteSpace(newQuestionText)) return;
+
+        var populatedOptions = newOptions
+            .Select((text, index) => new { Text = text.Trim(), Index = index })
+            .Where(x => !string.IsNullOrWhiteSpace(x.Text))
+            .ToList();
+
+        if (populatedOptions.Count < 2)
+        {
+            statusMessage = "Please provide at least 2 answer choices.";
+            isError = true;
+            return;
+        }
+
+        isAddingQuestion = true;
+        try
+        {
+            var optionDtos = populatedOptions
+                .Select(x => new QuizOptionDto(0, x.Text, x.Index == correctOptionIndex))
+                .ToList();
+
+            if (!optionDtos.Any(o => o.IsCorrect))
+            {
+                optionDtos[0] = optionDtos[0] with { IsCorrect = true };
+            }
+
+            var nextOrder = activeQuizDetails.Questions.Any()
+                ? activeQuizDetails.Questions.Max(q => q.SortOrder) + 1
+                : 1;
+
+            var questionDto = new QuizQuestionDto(0, activeQuizDetails.Id, newQuestionText.Trim(), newQuestionPoints, nextOrder, optionDtos);
+            var response = await Http.PostAsJsonAsync($"api/quizzes/{activeQuizDetails.Id}/questions", questionDto);
+            if (response.IsSuccessStatusCode)
+            {
+                activeQuizDetails = await response.Content.ReadFromJsonAsync<QuizDetailsDto>();
+                ResetQuestionForm();
+                await LoadQuizzes();
+                statusMessage = "Question added to quiz.";
+                isError = false;
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                statusMessage = $"Failed to add question: {err}";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error adding question: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isAddingQuestion = false;
+        }
+    }
+
+    private void CloseQuestionsModal()
+    {
+        isQuestionsModalOpen = false;
+        activeQuizDetails = null;
     }
 }

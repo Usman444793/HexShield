@@ -2,169 +2,390 @@
 @layout PublicLayout
 @attribute [AllowAnonymous]
 
-<PageTitle>HexShield | Intelligent LMS</PageTitle>
+<PageTitle>HexShield | Intelligent Enterprise LMS</PageTitle>
 
-<section class="hero-section">
-
-    <div class="hero-content">
-
-        <div class="hero-badge">
-            ● ENTERPRISE LEARNING PLATFORM
-        </div>
-
-        <h1>
-            The Intelligent LMS built for
-            <span>modern academies.</span>
-        </h1>
-
-        <p>
-            HexShield combines structured learning,
-            secure identity, organization-aware access
-            and intelligent educational delivery in one platform.
-        </p>
-
-        <div class="hero-actions">
-
-            <a href="/register"
-               class="hero-primary">
-                Get Started
-            </a>
-
-            <a href="/login"
-               class="hero-secondary">
-                Sign In
-            </a>
-
-        </div>
-
-    </div>
-
-    <div class="hero-panel">
-
-        <div class="panel-top">
-            <span>HEXSHIELD LMS</span>
-            <span class="online">● SYSTEM ONLINE</span>
-        </div>
-
-        <div class="panel-stat">
-
-            <strong>Secure learning infrastructure</strong>
-
-            <span>
-                RBAC · Multi-Tenancy · JWT · SQL Server
-            </span>
-
-        </div>
-
-        <div class="panel-grid">
-
-            <div>
-                <strong>Admin</strong>
-                <span>Governance</span>
+<div class="home-page">
+    <!-- HERO SECTION -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <div class="hero-badge">
+                ● ENTERPRISE LEARNING INFRASTRUCTURE
             </div>
 
-            <div>
-                <strong>Teacher</strong>
-                <span>Instruction</span>
+            <h1>
+                The Intelligent LMS built for
+                <span>modern academies.</span>
+            </h1>
+
+            <p>
+                HexShield unifies structured courses, interactive quizzes, assignment grading,
+                real-time attendance tracking, and multi-tenant security into one seamless platform.
+            </p>
+
+            <div class="hero-actions">
+                <a href="/register" class="hero-primary">
+                    Get Started Free
+                </a>
+                <a href="/login" class="hero-secondary">
+                    Sign In to Portal
+                </a>
+                <a href="#courses" class="hero-link">
+                    Explore Courses →
+                </a>
             </div>
 
-            <div>
-                <strong>Student</strong>
-                <span>Learning</span>
+            <div class="hero-metrics">
+                <div>
+                    <strong>99.98%</strong>
+                    <span>Tenant Isolation SLA</span>
+                </div>
+                <div>
+                    <strong>3 Portals</strong>
+                    <span>Admin · Teacher · Student</span>
+                </div>
+                <div>
+                    <strong>Zero-Trust</strong>
+                    <span>JWT + RBAC Security</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-panel">
+            <div class="panel-top">
+                <span>HEXSHIELD CORE ENGINE</span>
+                <span class="online">● SYSTEM ONLINE</span>
             </div>
 
+            <div class="panel-stat">
+                <strong>Unified Role-Based Learning Workspaces</strong>
+                <span>RBAC · Multi-Tenancy · Assessments · Analytics</span>
+            </div>
+
+            <div class="panel-grid">
+                <div>
+                    <strong>Admin</strong>
+                    <span>Tenants &amp; Governance</span>
+                </div>
+                <div>
+                    <strong>Teacher</strong>
+                    <span>Courses, Grading &amp; Attendance</span>
+                </div>
+                <div>
+                    <strong>Student</strong>
+                    <span>Lessons, Quizzes &amp; Progress</span>
+                </div>
+            </div>
+
+            <div class="panel-preview-list">
+                <div class="preview-item">
+                    <span class="preview-dot teal"></span>
+                    <div>
+                        <strong>Live Attendance &amp; Progress Tracking</strong>
+                        <span>Real-time completion rates &amp; session logs</span>
+                    </div>
+                </div>
+                <div class="preview-item">
+                    <span class="preview-dot blue"></span>
+                    <div>
+                        <strong>Automated Quiz Scoring &amp; Assignment Grading</strong>
+                        <span>Instant feedback and structured rubric evaluation</span>
+                    </div>
+                </div>
+            </div>
         </div>
+    </section>
 
-    </div>
-
-</section>
-
-<section class="architecture-section"
-         id="architecture">
-
-    <div class="section-heading" id="#platform">
-
-        <span>PLATFORM ARCHITECTURE</span>
-
-        <h2>
-            Built around secure educational delivery.
-        </h2>
-
-        <p>
-            Every part of HexShield is designed around
-            controlled access and organization-aware data.
-        </p>
-
-    </div>
-
-    <div class="feature-grid">
-
-        <div class="feature-card">
-
-            <span>01</span>
-
-            <h3>Role-Based Access</h3>
-
+    <!-- #PLATFORM SECTION -->
+    <section class="architecture-section" id="platform">
+        <div class="section-heading">
+            <span>PLATFORM ARCHITECTURE</span>
+            <h2>Built around secure educational delivery.</h2>
             <p>
-                Admin, Teacher and Student access is
-                enforced through server-side authorization.
+                Every layer of HexShield is engineered for controlled access, tenant-isolated academic data,
+                and frictionless collaboration between administrators, educators, and learners.
             </p>
-
         </div>
 
-        <div class="feature-card">
+        <div class="feature-grid">
+            <div class="feature-card">
+                <span>01 // ACCESS CONTROL</span>
+                <h3>Role-Based Workspaces</h3>
+                <p>
+                    Dedicated Admin, Teacher, and Student portals enforced through strict server-side
+                    JWT claims and fine-grained permission policies.
+                </p>
+            </div>
 
-            <span>02</span>
+            <div class="feature-card">
+                <span>02 // MULTI-TENANCY</span>
+                <h3>Strict Tenant Boundaries</h3>
+                <p>
+                    Organization-scoped query filters guarantee courses, enrollments, submissions, and
+                    attendance logs remain completely isolated per tenant.
+                </p>
+            </div>
 
-            <h3>Multi-Tenant Security</h3>
+            <div class="feature-card">
+                <span>03 // ACADEMIC ENGINE</span>
+                <h3>End-to-End Learning Lifecycle</h3>
+                <p>
+                    From sequenced lessons and downloadable resources to timed quizzes, assignment
+                    grading, and daily attendance tracking.
+                </p>
+            </div>
+        </div>
+    </section>
 
+    <!-- #COURSES SECTION -->
+    <section class="courses-showcase-section" id="courses">
+        <div class="section-heading">
+            <span>CURRICULUM CATALOG</span>
+            <h2>Structured courses designed for mastery.</h2>
             <p>
-                Tenant boundaries prevent users from
-                accessing another organization's data.
+                Explore how HexShield organizes multi-module curricula with sequenced lessons,
+                hands-on assignments, and automated competency quizzes.
             </p>
-
         </div>
 
-        <div class="feature-card">
+        <div class="showcase-grid">
+            <div class="showcase-card">
+                <div class="showcase-top">
+                    <span class="course-code-pill">CS-401</span>
+                    <span class="course-level-pill">Advanced</span>
+                </div>
+                <h3>Zero-Trust Cloud Security &amp; IAM Architecture</h3>
+                <p>
+                    Master multi-tenant identity federation, JWT token rotation, and cryptographic
+                    access control in distributed enterprise systems.
+                </p>
+                <div class="showcase-meta">
+                    <span>12 Lessons</span>
+                    <span>4 Assignments</span>
+                    <span>3 Timed Quizzes</span>
+                </div>
+                <a href="/register" class="showcase-cta">Enroll in Track →</a>
+            </div>
 
-            <span>03</span>
+            <div class="showcase-card">
+                <div class="showcase-top">
+                    <span class="course-code-pill">SE-302</span>
+                    <span class="course-level-pill">Intermediate</span>
+                </div>
+                <h3>Distributed .NET Microservices &amp; Clean Architecture</h3>
+                <p>
+                    Build resilient domain-driven backends with Entity Framework Core, multi-tenant
+                    query interceptors, and automated CI/CD verification.
+                </p>
+                <div class="showcase-meta">
+                    <span>16 Lessons</span>
+                    <span>6 Assignments</span>
+                    <span>4 Timed Quizzes</span>
+                </div>
+                <a href="/register" class="showcase-cta">Enroll in Track →</a>
+            </div>
 
-            <h3>Secure Identity</h3>
+            <div class="showcase-card">
+                <div class="showcase-top">
+                    <span class="course-code-pill">AI-205</span>
+                    <span class="course-level-pill">Core</span>
+                </div>
+                <h3>Applied Machine Learning &amp; Data Engineering</h3>
+                <p>
+                    Design reproducible feature pipelines, evaluate predictive models, and deploy
+                    telemetry-driven analytics dashboards.
+                </p>
+                <div class="showcase-meta">
+                    <span>10 Lessons</span>
+                    <span>5 Assignments</span>
+                    <span>3 Timed Quizzes</span>
+                </div>
+                <a href="/register" class="showcase-cta">Enroll in Track →</a>
+            </div>
+        </div>
+    </section>
 
+    <!-- #INSTRUCTORS SECTION -->
+    <section class="instructors-section" id="instructors">
+        <div class="instructors-container">
+            <div class="instructors-copy">
+                <span class="eyebrow-tag">FOR INSTRUCTORS &amp; EDUCATORS</span>
+                <h2>Empowering teachers with effortless classroom command.</h2>
+                <p>
+                    The HexShield Teacher Portal eliminates administrative overhead so instructors can
+                    focus on teaching, mentoring, and measuring real student outcomes.
+                </p>
+
+                <div class="instructor-capabilities">
+                    <div class="capability-item">
+                        <div class="cap-badge">01</div>
+                        <div>
+                            <h4>Course &amp; Sequenced Lesson Authoring</h4>
+                            <p>Publish rich markdown/HTML lessons, embed video lectures, and reorder modules with one click.</p>
+                        </div>
+                    </div>
+                    <div class="capability-item">
+                        <div class="cap-badge">02</div>
+                        <div>
+                            <h4>Assignment Submissions &amp; Rubric Grading</h4>
+                            <p>Review student submissions, attach personalized feedback, and record numeric grades directly.</p>
+                        </div>
+                    </div>
+                    <div class="capability-item">
+                        <div class="cap-badge">03</div>
+                        <div>
+                            <h4>Interactive Quiz Builder &amp; Auto-Grading</h4>
+                            <p>Create timed multiple-choice assessments with configurable passing thresholds and retry limits.</p>
+                        </div>
+                    </div>
+                    <div class="capability-item">
+                        <div class="cap-badge">04</div>
+                        <div>
+                            <h4>Bulk Attendance &amp; Student Progress Matrix</h4>
+                            <p>Mark daily Present, Late, Absent, or Excused attendance and monitor real-time lesson completion.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hero-actions">
+                    <a href="/login" class="hero-primary">Launch Teacher Portal</a>
+                </div>
+            </div>
+
+            <div class="instructors-visual">
+                <div class="visual-card">
+                    <div class="visual-header">
+                        <strong>INSTRUCTOR COMMAND CENTER</strong>
+                        <span class="status-pill">LIVE ANALYTICS</span>
+                    </div>
+                    <div class="visual-stat-row">
+                        <div class="visual-stat-box">
+                            <span>Course Completion</span>
+                            <strong>92.4%</strong>
+                        </div>
+                        <div class="visual-stat-box">
+                            <span>Avg Attendance</span>
+                            <strong>96.8%</strong>
+                        </div>
+                    </div>
+                    <div class="visual-checklist">
+                        <div class="check-row">
+                            <span class="check-icon">✓</span>
+                            <span>Bulk Attendance Roll Call Saved</span>
+                            <small>Just now</small>
+                        </div>
+                        <div class="check-row">
+                            <span class="check-icon">✓</span>
+                            <span>18 Assignment Submissions Graded</span>
+                            <small>2m ago</small>
+                        </div>
+                        <div class="check-row">
+                            <span class="check-icon">✓</span>
+                            <span>Midterm Quiz Auto-Scored</span>
+                            <small>15m ago</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- #ENTERPRISE SECTION -->
+    <section class="enterprise-section" id="enterprise">
+        <div class="section-heading">
+            <span>ENTERPRISE GOVERNANCE</span>
+            <h2>Multi-tenant scale with uncompromising security.</h2>
             <p>
-                JWT access tokens, refresh-token rotation,
-                account lockout and protected APIs.
+                Purpose-built for universities, corporate training academies, and multi-campus
+                organizations that demand strict data sovereignty.
             </p>
-
         </div>
 
-    </div>
+        <div class="enterprise-grid">
+            <div class="enterprise-card">
+                <h4>Dedicated Tenant Provisioning</h4>
+                <p>Onboard new organizations and sub-tenants in seconds with isolated database contexts and custom branding.</p>
+            </div>
+            <div class="enterprise-card">
+                <h4>Granular Permission Matrix</h4>
+                <p>Assign fine-grained capabilities across Admin, Teacher, and Student roles with instant revocation.</p>
+            </div>
+            <div class="enterprise-card">
+                <h4>Audit &amp; Security Telemetry</h4>
+                <p>Track entity creation, grade modifications, and authentication events with immutable user attribution.</p>
+            </div>
+            <div class="enterprise-card">
+                <h4>High-Availability .NET 10 Core</h4>
+                <p>Engineered on ASP.NET Core and Blazor WebAssembly for sub-second response times under heavy exam loads.</p>
+            </div>
+        </div>
+    </section>
 
-</section>
+    <!-- #PRICING SECTION -->
+    <section class="pricing-section" id="pricing">
+        <div class="section-heading">
+            <span>TRANSPARENT PRICING</span>
+            <h2>Flexible plans for every learning organization.</h2>
+            <p>
+                Start with a single department or deploy across an entire multi-tenant university network.
+            </p>
+        </div>
 
-<section class="curriculum-section"
-         id="curriculum">
+        <div class="pricing-grid">
+            <div class="pricing-card">
+                <div class="pricing-tier">STARTER ACADEMY</div>
+                <div class="pricing-price">$0<span>/month</span></div>
+                <p class="pricing-desc">Ideal for independent educators and pilot cohorts testing HexShield.</p>
+                <ul class="pricing-features">
+                    <li>Up to 3 Active Courses</li>
+                    <li>Up to 50 Enrolled Students</li>
+                    <li>Lessons, Assignments &amp; Quizzes</li>
+                    <li>Daily Attendance Tracking</li>
+                </ul>
+                <a href="/register" class="hero-secondary pricing-btn">Start Free</a>
+            </div>
 
-    <div>
+            <div class="pricing-card featured">
+                <div class="pricing-badge">MOST POPULAR</div>
+                <div class="pricing-tier">GROWTH INSTITUTION</div>
+                <div class="pricing-price">$149<span>/month</span></div>
+                <p class="pricing-desc">Full-featured LMS for growing schools, bootcamps, and training teams.</p>
+                <ul class="pricing-features">
+                    <li>Unlimited Courses &amp; Lessons</li>
+                    <li>Up to 1,000 Active Students</li>
+                    <li>Full Teacher Grading &amp; Analytics</li>
+                    <li>Role &amp; Access Control Matrix</li>
+                </ul>
+                <a href="/register" class="hero-primary pricing-btn">Start Institution Trial</a>
+            </div>
 
-        <span>LEARNING PLATFORM</span>
+            <div class="pricing-card">
+                <div class="pricing-tier">ENTERPRISE MULTI-TENANT</div>
+                <div class="pricing-price">Custom</div>
+                <p class="pricing-desc">Dedicated multi-tenant infrastructure for universities and global enterprises.</p>
+                <ul class="pricing-features">
+                    <li>Unlimited Tenants &amp; Organizations</li>
+                    <li>Unlimited Students &amp; Instructors</li>
+                    <li>Custom Domain &amp; SSO Integration</li>
+                    <li>Dedicated Security &amp; SLA Support</li>
+                </ul>
+                <a href="/login" class="hero-secondary pricing-btn">Contact Architecture Team</a>
+            </div>
+        </div>
+    </section>
 
-        <h2>
-            Learning infrastructure designed
-            for scale.
-        </h2>
-
-        <p>
-            Courses, lessons, assignments, quizzes and
-            progress tracking will be built on the
-            security foundation already established.
-        </p>
-
-        <a href="/register"
-           class="hero-primary">
-            Enter HexShield
-        </a>
-
-    </div>
-
-</section>
+    <!-- BOTTOM CTA -->
+    <section class="curriculum-section" id="curriculum">
+        <div>
+            <span>READY TO LAUNCH</span>
+            <h2>Experience the complete HexShield ecosystem today.</h2>
+            <p>
+                Create your account or sign in to explore the Admin Governance Console,
+                Teacher Classroom Workspace, and Student Learning Portal.
+            </p>
+            <div class="cta-buttons">
+                <a href="/register" class="hero-primary">Create Account</a>
+                <a href="/login" class="cta-secondary">Sign In to Existing Account</a>
+            </div>
+        </div>
+    </section>
+</div>

@@ -52,6 +52,26 @@ public class AnalyticsController : ControllerBase
         return Ok(new { message = "Lesson marked as complete." });
     }
 
+    [HttpGet("lessons/course/{courseId:int}/completed-ids")]
+    [Authorize(Roles = "Student")]
+    public async Task<ActionResult<IEnumerable<int>>> GetCompletedLessonIds(int courseId)
+    {
+        var ids = await _analyticsService.GetCompletedLessonIdsAsync(courseId, CurrentUserId);
+        return Ok(ids);
+    }
+
+    [HttpGet("attendance/course/{courseId:int}/my-attendance")]
+    [Authorize(Roles = "Student")]
+    public async Task<ActionResult<IEnumerable<AttendanceRecordDto>>> GetMyAttendance(int courseId)
+    {
+        var records = await _analyticsService.GetAttendanceByCourseAsync(courseId, null);
+        var myRecords = records
+            .Where(r => r.StudentId == CurrentUserId)
+            .OrderByDescending(r => r.SessionDate)
+            .ToList();
+        return Ok(myRecords);
+    }
+
     [HttpGet("progress/course/{courseId:int}")]
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<ActionResult<IEnumerable<StudentCourseProgressDto>>> GetCourseProgressSummary(int courseId)

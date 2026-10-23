@@ -1,23 +1,152 @@
 @page "/teacher"
-@attribute [Authorize(Policy = "TeacherOnly")]
+@attribute [Authorize(Roles = "Admin,Teacher")]
 @layout HexShield.Client.Components.Layout.AdminLayout
+@using System.Net.Http.Json
+@using HexShield.Shared.DTOs
+@inject HttpClient Http
+@inject NavigationManager Navigation
 
-<PageTitle>Teacher Workspace</PageTitle>
+<PageTitle>Teacher Workspace | HexShield</PageTitle>
 
-<div class="admin-dashboard">
-    <div class="page-heading">
+<div class="teacher-dashboard">
+    <div class="teacher-hero">
         <div>
-            <span class="eyebrow">HEXSHIELD INSTRUCTION</span>
+            <span class="eyebrow">HEXSHIELD INSTRUCTOR COMMAND CENTER</span>
             <h1>Teacher Workspace</h1>
-            <p>Manage courses, lessons, and published curriculum for your organization.</p>
+            <p>Manage your courses, author lessons, grade student assignments, build quizzes, and record daily attendance &amp; progress.</p>
+        </div>
+        <div class="hero-actions">
+            <a href="/teacher/courses" class="btn-primary">
+                <span>＋</span> Manage &amp; Create Courses
+            </a>
         </div>
     </div>
-    <div class="admin-cards">
-        <div class="admin-card">
-            <span class="card-label">COURSES</span>
-            <h2>My Courses</h2>
-            <p>Create, update, and publish courses assigned to you.</p>
-            <a href="/teacher/courses">Manage Courses →</a>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert-error">
+            <span>@errorMessage</span>
+            <button type="button" @onclick="() => errorMessage = null">&times;</button>
+        </div>
+    }
+
+    <!-- Summary Metrics -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <span class="kpi-label">TOTAL COURSES</span>
+            <strong class="kpi-value">@courses.Count</strong>
+            <span class="kpi-sub">Assigned to your organization</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">PUBLISHED CURRICULA</span>
+            <strong class="kpi-value text-teal">@courses.Count(c => c.IsPublished)</strong>
+            <span class="kpi-sub">Active &amp; visible to students</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">DRAFT COURSES</span>
+            <strong class="kpi-value">@courses.Count(c => !c.IsPublished)</strong>
+            <span class="kpi-sub">In preparation</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">TEACHER MODULES</span>
+            <strong class="kpi-value">5 Tools</strong>
+            <span class="kpi-sub">Lessons · Quizzes · Grading · Roster · Attendance</span>
         </div>
     </div>
+
+    <!-- Course Command Cards -->
+    <div class="section-header">
+        <div>
+            <h2>Course Classroom Hub</h2>
+            <p>Select any course below to jump directly to its Attendance &amp; Progress, Assignments, Quizzes, Lessons, or Student Roster.</p>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="empty-box">
+            <p>Loading your courses...</p>
+        </div>
+    }
+    else if (!courses.Any())
+    {
+        <div class="empty-box">
+            <h3>No Courses Found</h3>
+            <p>Get started by creating your first course in the Course Management portal.</p>
+            <a href="/teacher/courses" class="btn-primary">Create First Course →</a>
+        </div>
+    }
+    else
+    {
+        <div class="course-hub-grid">
+            @foreach (var course in courses)
+            {
+                <div class="course-hub-card">
+                    <div class="course-hub-top">
+                        <span class="code-badge">@course.CourseCode</span>
+                        <span class="status-badge @(course.IsPublished ? "published" : "draft")">
+                            @(course.IsPublished ? "● Published" : "○ Draft")
+                        </span>
+                    </div>
+
+                    <h3>@course.Title</h3>
+                    <p class="course-desc">
+                        @(string.IsNullOrWhiteSpace(course.Description) ? "No description provided for this course." : course.Description)
+                    </p>
+
+                    <div class="course-meta-row">
+                        <span>Node #@course.OrganizationNodeId</span>
+                        <span>Teacher Profile #@course.PrimaryTeacherProfileId</span>
+                    </div>
+
+                    <div class="teacher-tool-grid">
+                        <a href="/teacher/courses/@course.Id/attendance" class="tool-btn primary-tool">
+                            <span>📊</span> Attendance &amp; Progress
+                        </a>
+                        <a href="/teacher/courses/@course.Id/lessons" class="tool-btn">
+                            <span>📖</span> Lessons
+                        </a>
+                        <a href="/teacher/courses/@course.Id/assignments" class="tool-btn">
+                            <span>📝</span> Assignments &amp; Grading
+                        </a>
+                        <a href="/teacher/courses/@course.Id/quizzes" class="tool-btn">
+                            <span>⏱️</span> Quizzes &amp; Questions
+                        </a>
+                        <a href="/teacher/courses/@course.Id/enrollments" class="tool-btn">
+                            <span>👥</span> Student Roster
+                        </a>
+                    </div>
+                </div>
+            }
+        </div>
+    }
 </div>
+
+@code {
+    private List<CourseListDto> courses = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCourses();
+    }
+
+    private async Task LoadCourses()
+    {
+        isLoading = true;
+        try
+        {
+            var result = await Http.GetFromJsonAsync<List<CourseListDto>>("api/courses");
+            courses = result ?? new();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to load courses: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

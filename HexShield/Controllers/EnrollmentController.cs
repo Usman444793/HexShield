@@ -40,6 +40,28 @@ public class EnrollmentsController : ApiControllerBase
         return Ok(result);
     }
 
+    [HttpGet("my-enrollments")]
+    public async Task<ActionResult<IEnumerable<EnrollmentListDto>>> GetMyEnrollments()
+    {
+        var result = await _enrollmentService.GetEnrollmentsByStudent(CurrentUserId);
+        return Ok(result);
+    }
+
+    [HttpPost("self-enroll/{courseId:int}")]
+    [Authorize(Roles = "Student")]
+    public async Task<ActionResult<EnrollmentListDto>> SelfEnroll(int courseId)
+    {
+        try
+        {
+            var enrollment = await _enrollmentService.EnrollStudentAsync(new CreateEnrollmentRequestDto(courseId, CurrentUserId), CurrentUserId);
+            return Ok(enrollment);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost]
     [HttpPost("/api/courses/{courseId:int}/enrollments")]
     [Authorize(Roles = "Admin,Teacher,Student")]
@@ -48,6 +70,10 @@ public class EnrollmentsController : ApiControllerBase
         if (courseId.HasValue && courseId.Value > 0 && dto.CourseId == 0)
         {
             dto = dto with { CourseId = courseId.Value };
+        }
+        if (string.IsNullOrWhiteSpace(dto.StudentId))
+        {
+            dto = dto with { StudentId = CurrentUserId };
         }
         try
         {

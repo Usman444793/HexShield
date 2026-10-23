@@ -246,8 +246,13 @@ public record SubmissionListDto(
     decimal Grade,
     decimal MaxScore,
     SubmissionStatus status,
-    string? AttachmentUrl
-);
+    string? AttachmentUrl,
+    string? Content = null,
+    string? Feedback = null
+)
+{
+    public SubmissionStatus Status => status;
+}
 
 public record CreateSubmissionRequestDto(
     int AssignmentId,
@@ -294,6 +299,8 @@ public record QuizOptionDto(int Id, string Text, bool IsCorrect)
     [JsonConstructor]
     public QuizOptionDto(string Text, bool IsCorrect, int Id = 0)
         : this(Id, Text, IsCorrect) { }
+
+    public string OptionText => Text;
 }
 
 public record QuizQuestionDto(int Id, int QuizId, string Text, decimal Points, int SortOrder, List<QuizOptionDto> Options)
@@ -301,6 +308,8 @@ public record QuizQuestionDto(int Id, int QuizId, string Text, decimal Points, i
     [JsonConstructor]
     public QuizQuestionDto(string Text, decimal Points, int SortOrder, List<QuizOptionDto> Options, int Id = 0, int QuizId = 0)
         : this(Id, QuizId, Text, Points, SortOrder, Options) { }
+
+    public string QuestionText => Text;
 }
 
 public record QuizDetailsDto(
@@ -314,7 +323,10 @@ public record QuizDetailsDto(
     decimal PassPercentage,
     bool IsPublished,
     List<QuizQuestionDto> Questions
-);
+)
+{
+    public string? Description => Instructions;
+}
 
 public record CreateQuizRequestDto(
     int CourseId,
@@ -340,7 +352,12 @@ public record QuizAttemptResultDto(
     decimal TotalPossibleScore,
     decimal Percentage,
     bool Passed
-);
+)
+{
+    public int AttemptId => Id;
+    public decimal ScorePercentage => Math.Round(Percentage, 2);
+    public bool IsPassed => Passed;
+}
 
 #endregion
 
