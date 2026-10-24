@@ -3,28 +3,40 @@ using HexShield.Client.Services;
 using HexShield.Client.Services.Auth;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
+
 builder.Services.AddAuthorizationCore(options =>
 {
-    options.AddPolicy("Authenticated",policy => policy.RequireAuthenticatedUser());
-    options.AddPolicy("AdminOnly",policy => policy.RequireRole("Admin"));
-    options.AddPolicy("TeacherOnly",policy => policy.RequireRole("Teacher"));
-    options.AddPolicy("StudentOnly",policy => policy.RequireRole("Student"));
-    options.AddPolicy("AdminOrTeacher",policy => policy.RequireRole("Admin", "Teacher"));
+    options.AddPolicy("Authenticated", policy => policy.RequireAuthenticatedUser());
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("TeacherOnly", policy => policy.RequireRole("Teacher"));
+    options.AddPolicy("StudentOnly", policy => policy.RequireRole("Student"));
+    options.AddPolicy("AdminOrTeacher", policy => policy.RequireRole("Admin", "Teacher"));
 });
+
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddBlazoredLocalStorage();
+
+// Dedicated raw HttpClient for token refresh / revocation (avoids recursive handler cycles)
+builder.Services.AddHttpClient("HexShieldAuth", client =>
+{
+    client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress);
+});
+
 builder.Services.AddScoped<CustomAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(
     sp => sp.GetRequiredService<CustomAuthenticationStateProvider>());
+
 builder.Services.AddTransient<JwtAuthorizationHandler>();
 builder.Services.AddHttpClient("HexShield", client =>
 {
-    client.BaseAddress = new Uri(
-        builder.HostEnvironment.BaseAddress);
+    client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress);
 })
 .AddHttpMessageHandler<JwtAuthorizationHandler>();
+
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("HexShield"));
+
 var host = builder.Build();
 try
 {
@@ -33,6 +45,6 @@ try
 }
 catch
 {
-
 }
+
 await host.RunAsync();

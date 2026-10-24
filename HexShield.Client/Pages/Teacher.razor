@@ -29,8 +29,6 @@
             <button type="button" @onclick="() => errorMessage = null">&times;</button>
         </div>
     }
-
-    <!-- Summary Metrics -->
     <div class="kpi-grid">
         <div class="kpi-card">
             <span class="kpi-label">TOTAL COURSES</span>
@@ -53,8 +51,6 @@
             <span class="kpi-sub">Lessons · Quizzes · Grading · Roster · Attendance</span>
         </div>
     </div>
-
-    <!-- Course Command Cards -->
     <div class="section-header">
         <div>
             <h2>Course Classroom Hub</h2>
@@ -88,12 +84,10 @@
                             @(course.IsPublished ? "● Published" : "○ Draft")
                         </span>
                     </div>
-
                     <h3>@course.Title</h3>
                     <p class="course-desc">
                         @(string.IsNullOrWhiteSpace(course.Description) ? "No description provided for this course." : course.Description)
                     </p>
-
                     <div class="course-meta-row">
                         <span>Node #@course.OrganizationNodeId</span>
                         <span>Teacher Profile #@course.PrimaryTeacherProfileId</span>
@@ -101,19 +95,19 @@
 
                     <div class="teacher-tool-grid">
                         <a href="/teacher/courses/@course.Id/attendance" class="tool-btn primary-tool">
-                            <span>📊</span> Attendance &amp; Progress
+                            <span><i class="fa-solid fa-chart-bar"></i></span> Attendance &amp; Progress
                         </a>
                         <a href="/teacher/courses/@course.Id/lessons" class="tool-btn">
-                            <span>📖</span> Lessons
+                            <span><i class="fa-solid fa-chalkboard"></i></span> Lessons
                         </a>
                         <a href="/teacher/courses/@course.Id/assignments" class="tool-btn">
-                            <span>📝</span> Assignments &amp; Grading
+                            <span><i class="fa-solid fa-paste"></i></span> Assignments &amp; Grading
                         </a>
                         <a href="/teacher/courses/@course.Id/quizzes" class="tool-btn">
-                            <span>⏱️</span> Quizzes &amp; Questions
+                            <span><i class="fa-solid fa-stopwatch"></i></span> Quizzes &amp; Questions
                         </a>
                         <a href="/teacher/courses/@course.Id/enrollments" class="tool-btn">
-                            <span>👥</span> Student Roster
+                            <span><i class="fa-solid fa-users"></i></span> Student Roster
                         </a>
                     </div>
                 </div>

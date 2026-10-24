@@ -14,13 +14,11 @@ public class Submission : BaseEntity, IMultiTenant
     [Required]
     public string StudentId { get; set; } = string.Empty;
     public ApplicationUser Student { get; set; } = null!;
-    [MaxLength(4000)]
     public string? Content { get; set; }
-    [MaxLength(500)]
+    [MaxLength(2000)]
     public string? AttachmentUrl { get; set; }
     public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
     public decimal Grade { get; set; }
-    [MaxLength(1000)]
     public string? Feedback { get; set; }
     public SubmissionStatus Status { get; set; } = SubmissionStatus.Submitted;
 }

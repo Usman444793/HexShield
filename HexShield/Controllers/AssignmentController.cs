@@ -21,7 +21,11 @@ public class AssignmentController : ApiControllerBase
         _assignmentService = assignmentService;
     }
 
-    private string CurrentUserId => User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "system-user";
+    private string CurrentUserId =>
+        User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+        ?? User.FindFirst("sub")?.Value
+        ?? User.FindFirst("nameid")?.Value
+        ?? "system-user";
 
     [HttpGet("course/{courseId:int}")]
     [HttpGet("/api/courses/{courseId:int}/assignments")]
@@ -46,7 +50,7 @@ public class AssignmentController : ApiControllerBase
         try
         {
             var created = await _assignmentService.CreateAssignmentAsync(dto, CurrentUserId);
-            return CreatedAtAction(nameof(GetById), new { Id = created.Id }, created);
+            return Ok(created);
         }
         catch (Exception ex)
         {

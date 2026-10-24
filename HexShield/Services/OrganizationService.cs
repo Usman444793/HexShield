@@ -29,13 +29,23 @@ public class OrganizationService : IOrganizationService
 
     public async Task<IEnumerable<OrganizationNodeDto>> GetOrganizationHierarchyAsync()
     {
-        var rootNodes = await _context.OrganizationNodes
-            .Include(n => n.Children)
-            .Where(n => n.ParentId == null)
+        var allNodes = await _context.OrganizationNodes
             .AsNoTracking()
+            .OrderBy(n => n.Id)
             .ToListAsync();
 
-        return rootNodes.Select(MapToDto);
+        var childrenLookup = allNodes.ToLookup(n => n.ParentId);
+
+        OrganizationNodeDto BuildTree(OrganizationNode node) => new(
+            node.Id,
+            node.TenantId,
+            node.Name,
+            node.NodeType,
+            node.ParentId,
+            childrenLookup[node.Id].Select(BuildTree).ToList()
+        );
+
+        return childrenLookup[null].Select(BuildTree).ToList();
     }
 
     public async Task<OrganizationNodeDto?> GetNodeByIdAsync(int id)
@@ -77,7 +87,6 @@ public class OrganizationService : IOrganizationService
             code = code[..20];
         }
 
-        // Check if code already exists in this tenant
         var codeExists = await _context.OrganizationNodes
             .AnyAsync(n => n.TenantId == _tenantContext.TenantId && n.Code == code);
         if (codeExists)
@@ -103,7 +112,7 @@ public class OrganizationService : IOrganizationService
 
     public async Task<OrganizationNodeDto> UpdateNodeAsync(int id, UpdateOrganizationNodeDto dto)
     {
-        var node = await _context.OrganizationNodes.FindAsync(id) 
+        var node = await _context.OrganizationNodes.FindAsync(id)
             ?? throw new KeyNotFoundException($"Organization node {id} not found.");
 
         if (dto.ParentId.HasValue && dto.ParentId.Value == id)
@@ -145,24 +154,38 @@ public class OrganizationService : IOrganizationService
     public async Task<bool> AssignUserToNodeAsync(int id, AssignUserToNodeDto dto)
     {
         var nodeExists = await _context.OrganizationNodes.AnyAsync(n => n.Id == id);
-        if (!nodeExists) 
+        if (!nodeExists)
             throw new KeyNotFoundException($"Organization node {id} was not found.");
 
-        var user = await _userManager.FindByIdAsync(dto.UserId) 
-            ?? throw new KeyNotFoundException($"User with ID '{dto.UserId}' was not found.");
+        var identifier = dto.UserId.Trim();
+        var user = await _userManager.FindByIdAsync(identifier)
+            ?? await _userManager.FindByEmailAsync(identifier)
+            ?? throw new KeyNotFoundException($"User '{identifier}' was not found by ID or Email.");
 
-        var role = await _roleManager.FindByNameAsync(dto.RoleName) 
-            ?? await _roleManager.FindByIdAsync(dto.RoleName)
-            ?? throw new KeyNotFoundException($"Role '{dto.RoleName}' was not found.");
+        var roleName = dto.RoleName.Trim();
+        var role = await _roleManager.FindByNameAsync(roleName)
+            ?? await _roleManager.FindByIdAsync(roleName);
+
+        if (role == null)
+        {
+            role = new ApplicationRole
+            {
+                Name = roleName,
+                NormalizedName = roleName.ToUpperInvariant(),
+                Description = $"Organization node role: {roleName}",
+                TenantId = _tenantContext.TenantId > 0 ? _tenantContext.TenantId : user.TenantId
+            };
+            await _roleManager.CreateAsync(role);
+        }
 
         var existingMapping = await _context.UserOrganizationRoles
-            .FirstOrDefaultAsync(ur => ur.UserId == dto.UserId && ur.OrganizationNodeId == id && ur.RoleId == role.Id);
+            .FirstOrDefaultAsync(ur => ur.UserId == user.Id && ur.OrganizationNodeId == id && ur.RoleId == role.Id);
 
         if (existingMapping != null) return true;
 
         var userOrgRole = new UserOrganizationRole
         {
-            UserId = dto.UserId,
+            UserId = user.Id,
             OrganizationNodeId = id,
             RoleId = role.Id
         };

@@ -1,9 +1,12 @@
 using HexShield.Data;
 using HexShield.Infrastructure.Tenancy;
-using HexShield.Shared.DTOs;
+using HexShield.Models.Academic;
 using HexShield.Models.Identity;
+using HexShield.Shared.DTOs;
+using HexShield.Shared.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+
 namespace HexShield.Services;
 
 public class AdminService : IAdminService
@@ -13,7 +16,13 @@ public class AdminService : IAdminService
     private readonly ApplicationDbContext _context;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<AdminService> _logger;
-    public AdminService(UserManager<ApplicationUser> userManager, RoleManager<ApplicationRole> roleManager, ApplicationDbContext context, ITenantContext tenantContext, ILogger<AdminService> logger)
+
+    public AdminService(
+        UserManager<ApplicationUser> userManager,
+        RoleManager<ApplicationRole> roleManager,
+        ApplicationDbContext context,
+        ITenantContext tenantContext,
+        ILogger<AdminService> logger)
     {
         _userManager = userManager;
         _roleManager = roleManager;
@@ -21,15 +30,19 @@ public class AdminService : IAdminService
         _tenantContext = tenantContext;
         _logger = logger;
     }
+
     public async Task<IEnumerable<UserListDto>> GetUsersAsync()
     {
-        var users = await _userManager.Users.Include(u => u.OrganizationRoles).AsNoTracking().ToListAsync();
+        var users = await _userManager.Users
+            .Include(u => u.OrganizationRoles)
+            .AsNoTracking()
+            .ToListAsync();
+
         var userList = new List<UserListDto>();
         foreach (var user in users)
         {
             var roles = await _userManager.GetRolesAsync(user);
-            userList.Add(new UserListDto
-            (
+            userList.Add(new UserListDto(
                 user.Id,
                 user.TenantId,
                 user.FullName,
@@ -42,12 +55,18 @@ public class AdminService : IAdminService
         }
         return userList;
     }
+
     public async Task<UserDetailsDto?> GetUserByIdAsync(string userId)
     {
-        var user = await _userManager.Users.Include(u => u.OrganizationRoles).FirstOrDefaultAsync(u => u.Id == userId);
+        var user = await _userManager.Users
+            .Include(u => u.OrganizationRoles)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
         if (user == null) return null;
+
         var roles = await _userManager.GetRolesAsync(user);
         var orgNodeIds = user.OrganizationRoles.Select(r => r.OrganizationNodeId).ToList();
+
         return new UserDetailsDto(
             user.Id,
             user.TenantId,
@@ -60,6 +79,7 @@ public class AdminService : IAdminService
             orgNodeIds
         );
     }
+
     public async Task<UserDetailsDto> CreateUserAsync(CreateUserRequestDto dto)
     {
         var tenantId = dto.TenantId ?? _tenantContext.TenantId;
@@ -67,13 +87,18 @@ public class AdminService : IAdminService
         {
             throw new InvalidOperationException("Valid Tenant ID must be present in this context");
         }
-        var NormalizedEmail = dto.Email.ToUpperInvariant();
-        var existingUser = await _userManager.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == NormalizedEmail);
+
+        var normalizedEmail = dto.Email.Trim().ToUpperInvariant();
+        var existingUser = await _userManager.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
         if (existingUser != null)
         {
             throw new InvalidOperationException("User with this Email already exists");
         }
-        var fullName = string.IsNullOrWhiteSpace(dto.LastName) ? dto.FirstName.Trim() : $"{dto.FirstName.Trim()} {dto.LastName.Trim()}";
+
+        var fullName = string.IsNullOrWhiteSpace(dto.LastName)
+            ? dto.FirstName.Trim()
+            : $"{dto.FirstName.Trim()} {dto.LastName.Trim()}";
+
         var user = new ApplicationUser
         {
             UserName = dto.Email.Trim(),
@@ -81,14 +106,17 @@ public class AdminService : IAdminService
             FullName = fullName,
             TenantId = tenantId,
             IsActive = true,
+            EmailConfirmed = true,
             CreatedAt = DateTimeOffset.UtcNow
         };
+
         var result = await _userManager.CreateAsync(user, dto.Password);
         if (!result.Succeeded)
         {
             var errors = string.Join(", ", result.Errors.Select(e => e.Description));
             throw new InvalidOperationException($"User Creation failed: {errors}");
         }
+
         if (dto.Roles != null && dto.Roles.Any())
         {
             foreach (var role in dto.Roles)
@@ -96,56 +124,138 @@ public class AdminService : IAdminService
                 if (await _roleManager.RoleExistsAsync(role))
                 {
                     await _userManager.AddToRoleAsync(user, role);
+                    await EnsureAcademicProfileForRoleAsync(user.Id, role);
                 }
             }
         }
-        _logger.LogInformation("Admin created User with {Email} and Tenant {tenantId}",user.Email,tenantId);
+
+        _logger.LogInformation("Admin created User with {Email} and Tenant {TenantId}", user.Email, tenantId);
         return (await GetUserByIdAsync(user.Id))!;
     }
+
     public async Task<UserDetailsDto> UpdateUserAsync(string userId, UpdateUserDto dto)
     {
-        var user = await _userManager.FindByIdAsync(userId) ?? throw new KeyNotFoundException($"User with Id {userId} not found");
-        var fullName = string.IsNullOrWhiteSpace(dto.LastName) ? dto.FirstName.Trim() : $"{dto.FirstName.Trim()} {dto.LastName.Trim()}";
+        var user = await _userManager.FindByIdAsync(userId)
+            ?? throw new KeyNotFoundException($"User with Id {userId} not found");
+
+        var fullName = string.IsNullOrWhiteSpace(dto.LastName)
+            ? dto.FirstName.Trim()
+            : $"{dto.FirstName.Trim()} {dto.LastName.Trim()}";
+
         user.FullName = fullName;
         user.Email = dto.Email.Trim();
         user.UserName = dto.Email.Trim();
+
         if (dto.RowVersion != null && dto.RowVersion.Length > 0)
         {
             _context.Entry(user).Property(u => u.RowVersion).OriginalValue = dto.RowVersion;
         }
+
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded)
         {
             var errors = string.Join(", ", result.Errors.Select(e => e.Description));
             throw new InvalidOperationException($"User Update failed {errors}");
         }
+
         return (await GetUserByIdAsync(userId))!;
     }
-    public async Task<bool> SetUserActiveStatusAsync(string userId,bool IsActive)
+
+    public async Task<bool> SetUserActiveStatusAsync(string userId, bool isActive)
     {
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null) return false;
-        user.IsActive = IsActive;
+
+        user.IsActive = isActive;
         await _userManager.UpdateAsync(user);
-        _logger.LogInformation("User {UserId} active status changed to {IsActive}", userId, IsActive);
+
+        if (!isActive)
+        {
+            // Immediately revoke all active refresh tokens when deactivating a user
+            var activeTokens = await _context.RefreshTokens
+                .AsTracking()
+                .Where(rt => rt.UserId == userId && !rt.IsRevoked)
+                .ToListAsync();
+
+            foreach (var token in activeTokens)
+            {
+                token.IsRevoked = true;
+                token.RevokedAt = DateTimeOffset.UtcNow;
+                token.ReplacedByTokenHash = "REVOKED_BY_ADMIN_DEACTIVATION";
+            }
+
+            if (activeTokens.Count > 0)
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        _logger.LogInformation("User {UserId} active status changed to {IsActive}", userId, isActive);
         return true;
     }
-    public async Task<bool> AssignRoleAsync(string userId,string roleName)
+
+    public async Task<bool> AssignRoleAsync(string userId, string roleName)
     {
         var user = await _userManager.FindByIdAsync(userId);
-        if(user == null) return false;
-        if (! await _roleManager.RoleExistsAsync(roleName))
+        if (user == null) return false;
+
+        if (!await _roleManager.RoleExistsAsync(roleName))
         {
-            throw new InvalidOperationException($"Role {roleName} does not exists");
+            throw new InvalidOperationException($"Role {roleName} does not exist");
         }
-        var result = await _userManager.AddToRoleAsync(user,roleName);
+
+        if (!await _userManager.IsInRoleAsync(user, roleName))
+        {
+            var result = await _userManager.AddToRoleAsync(user, roleName);
+            if (!result.Succeeded) return false;
+        }
+
+        await EnsureAcademicProfileForRoleAsync(user.Id, roleName);
         return true;
     }
+
     public async Task<bool> RemoveRoleAsync(string userId, string roleName)
     {
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null) return false;
-        var result = await _userManager.RemoveFromRoleAsync(user,roleName);
+
+        var result = await _userManager.RemoveFromRoleAsync(user, roleName);
         return result.Succeeded;
+    }
+
+    private async Task EnsureAcademicProfileForRoleAsync(string userId, string roleName)
+    {
+        if (string.Equals(roleName, LmsRoles.Teacher, StringComparison.OrdinalIgnoreCase))
+        {
+            var exists = await _context.TeacherProfiles.AnyAsync(tp => tp.UserId == userId);
+            if (!exists)
+            {
+                _context.TeacherProfiles.Add(new TeacherProfile
+                {
+                    UserId = userId,
+                    EmployeeNumber = $"EMP-{DateTimeOffset.UtcNow.Year}-{Random.Shared.Next(1000, 9999)}",
+                    Bio = "Faculty Instructor",
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    CreatedById = userId
+                });
+                await _context.SaveChangesAsync();
+            }
+        }
+        else if (string.Equals(roleName, LmsRoles.Student, StringComparison.OrdinalIgnoreCase))
+        {
+            var exists = await _context.StudentProfiles.AnyAsync(sp => sp.UserId == userId);
+            if (!exists)
+            {
+                _context.StudentProfiles.Add(new StudentProfile
+                {
+                    UserId = userId,
+                    StudentNumber = $"STU-{DateTimeOffset.UtcNow.Year}-{Random.Shared.Next(10000, 99999)}",
+                    Department = "General",
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    CreatedById = userId
+                });
+                await _context.SaveChangesAsync();
+            }
+        }
     }
 }

@@ -40,7 +40,7 @@ public class AuthController : ApiControllerBase
     public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginRequestDto request)
     {
         _logger.LogInformation("Login attempt for email: {Email}", request.Email);
-        try 
+        try
         {
             var response = await _authService.LoginAsync(request, GetClientIpAddress());
             SetRefreshTokenCookie(response.RefreshToken);
@@ -58,15 +58,18 @@ public class AuthController : ApiControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<AuthResponseDto>> RefreshToken([FromBody] RefreshTokenRequestDto? request)
     {
-        var refreshToken = request?.RefreshToken ?? Request.Cookies["refreshToken"];
-        if (string.IsNullOrEmpty(refreshToken))
+        var refreshToken = !string.IsNullOrWhiteSpace(request?.RefreshToken)
+            ? request.RefreshToken.Trim()
+            : Request.Cookies["refreshToken"];
+
+        if (string.IsNullOrWhiteSpace(refreshToken))
         {
             return BadRequest(new { message = "Refresh token is required." });
         }
 
-        // Allow extracting access token from body OR Authorization header
+        // Allow extracting access token from body OR Authorization header (optional if refresh token hash is valid)
         var accessToken = request?.AccessToken;
-        if (string.IsNullOrEmpty(accessToken) && Request.Headers.TryGetValue("Authorization", out var authHeader))
+        if (string.IsNullOrWhiteSpace(accessToken) && Request.Headers.TryGetValue("Authorization", out var authHeader))
         {
             var headerStr = authHeader.ToString();
             if (headerStr.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
@@ -75,12 +78,7 @@ public class AuthController : ApiControllerBase
             }
         }
 
-        if (string.IsNullOrEmpty(accessToken))
-        {
-            return BadRequest(new { message = "Access token is required to refresh session." });
-        }
-
-        var dto = new RefreshTokenRequestDto(accessToken, refreshToken);
+        var dto = new RefreshTokenRequestDto(accessToken ?? string.Empty, refreshToken);
         var response = await _authService.RefreshTokenAsync(dto, GetClientIpAddress());
         SetRefreshTokenCookie(response.RefreshToken);
         return Ok(response);
@@ -90,14 +88,18 @@ public class AuthController : ApiControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> RevokeToken([FromBody] RevokeTokenRequestDto? request)
     {
-        var refreshToken = request?.RefreshToken ?? Request.Cookies["refreshToken"];
-        if (string.IsNullOrEmpty(refreshToken))
+        var refreshToken = !string.IsNullOrWhiteSpace(request?.RefreshToken)
+            ? request.RefreshToken.Trim()
+            : Request.Cookies["refreshToken"];
+
+        Response.Cookies.Delete("refreshToken");
+
+        if (string.IsNullOrWhiteSpace(refreshToken))
         {
-            return BadRequest(new { message = "Refresh token is required." });
+            return Ok(new { message = "Session cleared." });
         }
 
         await _authService.RevokeTokenAsync(refreshToken, GetClientIpAddress());
-        Response.Cookies.Delete("refreshToken");
         return Ok(new { message = "Token revoked successfully." });
     }
 
@@ -108,7 +110,7 @@ public class AuthController : ApiControllerBase
         {
             HttpOnly = true,
             Secure = isHttps,
-            SameSite = isHttps ? SameSiteMode.None : SameSiteMode.Lax,
+            SameSite = SameSiteMode.Lax,
             Expires = DateTimeOffset.UtcNow.AddDays(7),
             Path = "/"
         };

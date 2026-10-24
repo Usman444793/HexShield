@@ -62,6 +62,21 @@ a:visited {
     text-decoration: none !important;
 }
 
+/* Ensure fa-hexagon-nodes glyph (\e699) always resolves in Font Awesome 6+ */
+.fa-hexagon-nodes::before {
+    content: "\e699";
+}
+
+.admin-logo i,
+.brand-mark i,
+.auth-logo i,
+.profile-avatar i {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
 /* Global Portal Sidebar & Topbar NavLink Styling (ensures Blazor NavLink renders cleanly) */
 a.admin-nav-link {
     display: flex;

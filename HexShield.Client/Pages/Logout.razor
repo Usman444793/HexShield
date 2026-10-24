@@ -9,8 +9,9 @@
 <div class="auth-page">
     <div class="auth-card">
         <div class="auth-header">
+            <div class="auth-logo"><i class="fa-solid fa-hexagon-nodes"></i></div>
             <h1>Signing out</h1>
-            <p>Clearing your HexShield session.</p>
+            <p>Revoking refresh token and clearing your HexShield session...</p>
         </div>
     </div>
 </div>
@@ -18,7 +19,7 @@
 @code {
     protected override async Task OnInitializedAsync()
     {
-        await AuthState.MarkUserAsLoggedOut();
+        await AuthState.RevokeAndLogoutAsync();
         Navigation.NavigateTo("/login");
     }
 }

@@ -213,7 +213,7 @@ public record AssignmentDetailDto(
     int CourseId,
     int? LessonId,
     string Title,
-    string Description,
+    string? Description,
     DateTime DueDate,
     decimal MaxScore,
     bool IsPublished,
@@ -245,13 +245,14 @@ public record SubmissionListDto(
     DateTime SubmittedAt,
     decimal Grade,
     decimal MaxScore,
-    SubmissionStatus status,
+    SubmissionStatus Status,
     string? AttachmentUrl,
     string? Content = null,
     string? Feedback = null
 )
 {
-    public SubmissionStatus Status => status;
+    [JsonIgnore]
+    public SubmissionStatus status => Status;
 }
 
 public record CreateSubmissionRequestDto(
@@ -503,4 +504,3 @@ public record UpdateTenantDto(
 );
 
 #endregion
-

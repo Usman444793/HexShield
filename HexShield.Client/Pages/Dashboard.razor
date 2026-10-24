@@ -2,7 +2,7 @@
 @attribute [Authorize(Policy = "AdminOnly")]
 @layout HexShield.Client.Components.Layout.AdminLayout
 
-<PageTitle>Admin Command Center</PageTitle>
+<PageTitle>Admin Command Center | HexShield</PageTitle>
 <div class="admin-dashboard">
     <div class="page-heading">
         <div>
@@ -11,7 +11,7 @@
             </span>
             <h1>Admin Command Center</h1>
             <p>
-                Manage users, organizations, access control and security.
+                Manage users, organizations, tenants, academic courses, access control, and security.
             </p>
         </div>
         <div class="system-status">
@@ -26,7 +26,7 @@
             </span>
             <h2>Users</h2>
             <p>
-                Create, update, activate and deactivate users.
+                Create, update, activate and deactivate users across your tenant workspace.
             </p>
             <a href="/admin/users">
                 Manage Users →
@@ -38,7 +38,7 @@
             </span>
             <h2>Organizations</h2>
             <p>
-                Manage tenant organization structure and boundaries.
+                Manage institutional faculties, departments, programs, and hierarchy boundaries.
             </p>
             <a href="/admin/organizations">
                 Manage Organizations →
@@ -50,10 +50,22 @@
             </span>
             <h2>Tenants</h2>
             <p>
-                Manage multi-tenant customers, domain routing, and workspaces.
+                Manage multi-tenant customers, custom domain routing, and isolated workspaces.
             </p>
             <a href="/admin/tenants">
                 Manage Tenants →
+            </a>
+        </div>
+        <div class="admin-card">
+            <span class="card-label">
+                CURRICULUM
+            </span>
+            <h2>Courses</h2>
+            <p>
+                Provision courses, publish curriculum modules, and oversee assignments and quizzes.
+            </p>
+            <a href="/admin/courses">
+                Manage Courses →
             </a>
         </div>
         <div class="admin-card">
@@ -62,7 +74,7 @@
             </span>
             <h2>Access Control</h2>
             <p>
-                Assign and remove application roles for users.
+                Assign and remove application roles and fine-grained permissions for users.
             </p>
             <a href="/admin/access-control">
                 Manage Access →
@@ -72,9 +84,9 @@
             <span class="card-label">
                 SECURITY
             </span>
-            <h2>Security</h2>
+            <h2>Security Center</h2>
             <p>
-                Review authentication and security infrastructure.
+                Inspect JWT telemetry, test refresh token rotation, and verify security shields.
             </p>
             <a href="/admin/security">
                 Security Center →

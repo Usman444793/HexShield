@@ -1,6 +1,9 @@
 @page "/admin/security"
 @layout AdminLayout
 @attribute [Authorize(Policy = "AdminOnly")]
+@using System.IdentityModel.Tokens.Jwt
+@using HexShield.Client.Services
+@inject CustomAuthenticationStateProvider AuthState
 
 <PageTitle>Security Command Center | HexShield</PageTitle>
 
@@ -10,13 +13,63 @@
             <div class="text-muted small mb-1">
                 <a href="/admin" class="text-decoration-none text-muted"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
             </div>
-            <h2 class="fw-bold mb-1">Security & Infrastructure Center</h2>
-            <p class="text-muted mb-0">Overview of multi-tenant cryptographic isolation, authentication policies, and API rate limiting.</p>
+            <h2 class="fw-bold mb-1">Security &amp; Infrastructure Center</h2>
+            <p class="text-muted mb-0">Overview of multi-tenant cryptographic isolation, authentication policies, refresh token rotation, and API rate limiting.</p>
         </div>
-        <div>
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-primary" @onclick="RotateTokenManualAsync" disabled="@isRotating">
+                <i class="fa-solid @(isRotating ? "fa-spinner fa-spin" : "fa-arrows-rotate") me-1"></i>
+                @(isRotating ? "Rotating Token..." : "Rotate Refresh Token Now")
+            </button>
             <span class="badge bg-success px-3 py-2 fs-6">
                 <i class="fa-solid fa-circle-check me-1"></i> All Shields Active
             </span>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(rotationMessage))
+    {
+        <div class="alert @(rotationError ? "alert-danger" : "alert-success") alert-dismissible fade show mb-4" role="alert">
+            <i class="fa-solid @(rotationError ? "fa-triangle-exclamation" : "fa-shield-check") me-2"></i>
+            <span>@rotationMessage</span>
+            <button type="button" class="btn-close" @onclick="() => rotationMessage = null"></button>
+        </div>
+    }
+
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0"><i class="fa-solid fa-fingerprint text-primary me-2"></i>Active Session &amp; Refresh Token Telemetry</h5>
+            <span class="badge @(hasRefreshToken ? "bg-success" : "bg-warning text-dark")">
+                @(hasRefreshToken ? "Refresh Token Active (SHA-256 Hashed)" : "No Refresh Token Found")
+            </span>
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="p-3 bg-light rounded-3 h-100">
+                        <div class="text-muted small fw-semibold">TOKEN JTI (UNIQUE ID)</div>
+                        <div class="fw-bold text-dark mt-1 text-truncate" title="@currentJti"><code>@(string.IsNullOrEmpty(currentJti) ? "N/A" : currentJti)</code></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="p-3 bg-light rounded-3 h-100">
+                        <div class="text-muted small fw-semibold">ACCESS TOKEN EXPIRES (UTC)</div>
+                        <div class="fw-bold text-dark mt-1">@(tokenExpiresUtc?.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? "N/A")</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="p-3 bg-light rounded-3 h-100">
+                        <div class="text-muted small fw-semibold">REFRESH TOKEN FINGERPRINT</div>
+                        <div class="fw-bold text-dark mt-1"><code>@refreshTokenPreview</code></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="p-3 bg-light rounded-3 h-100">
+                        <div class="text-muted small fw-semibold">ROTATION &amp; REPLAY PROTECTION</div>
+                        <div class="fw-bold text-success mt-1"><i class="fa-solid fa-lock me-1"></i>One-Time Use Enforced</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -29,7 +82,7 @@
                             <i class="fa-solid fa-key fa-xl"></i>
                         </div>
                         <div>
-                            <h5 class="fw-bold mb-0">Identity & JWT</h5>
+                            <h5 class="fw-bold mb-0">Identity &amp; JWT</h5>
                             <span class="badge bg-success-subtle text-success border border-success-subtle">ENFORCED</span>
                         </div>
                     </div>
@@ -114,6 +167,12 @@
                             <td><span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Verified</span></td>
                         </tr>
                         <tr>
+                            <td class="fw-semibold">Refresh Token Rotation &amp; Replay Detection</td>
+                            <td>OAuth 2.0 Security BCP</td>
+                            <td>SHA-256 Token Hashing + One-Time Rotation + Family Revocation</td>
+                            <td><span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Verified</span></td>
+                        </tr>
+                        <tr>
                             <td class="fw-semibold">Optimistic Concurrency Protection</td>
                             <td>Prevent Lost Updates</td>
                             <td>SQL Server <code>rowversion</code> + EF ConcurrencyToken</td>
@@ -126,7 +185,7 @@
                             <td><span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Verified</span></td>
                         </tr>
                         <tr>
-                            <td class="fw-semibold">Brute-Force & Credential Stuffing Defense</td>
+                            <td class="fw-semibold">Brute-Force &amp; Credential Stuffing Defense</td>
                             <td>OWASP Authentication Top 10</td>
                             <td>Identity Lockout (5 attempts) + Auth FixedWindow RateLimiter (10/min)</td>
                             <td><span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Verified</span></td>
@@ -149,3 +208,81 @@
         </div>
     </div>
 </div>
+
+@code {
+    private string? currentJti;
+    private DateTime? tokenExpiresUtc;
+    private string refreshTokenPreview = "Not available";
+    private bool hasRefreshToken;
+    private bool isRotating;
+    private string? rotationMessage;
+    private bool rotationError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTokenTelemetryAsync();
+    }
+
+    private async Task LoadTokenTelemetryAsync()
+    {
+        try
+        {
+            var accessToken = await AuthState.GetAccessTokenAsync();
+            var refreshToken = await AuthState.GetRefreshTokenAsync();
+
+            hasRefreshToken = !string.IsNullOrWhiteSpace(refreshToken);
+            if (hasRefreshToken && refreshToken!.Length >= 12)
+            {
+                refreshTokenPreview = $"{refreshToken[..8]}••••{refreshToken[^4..]}";
+            }
+            else if (hasRefreshToken)
+            {
+                refreshTokenPreview = "Active";
+            }
+            else
+            {
+                refreshTokenPreview = "None";
+            }
+
+            if (!string.IsNullOrWhiteSpace(accessToken))
+            {
+                var jwt = new JwtSecurityTokenHandler().ReadJwtToken(accessToken);
+                currentJti = jwt.Id;
+                tokenExpiresUtc = jwt.ValidTo;
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task RotateTokenManualAsync()
+    {
+        isRotating = true;
+        rotationMessage = null;
+        try
+        {
+            var newToken = await AuthState.TryRefreshTokenAsync(forceRefresh: true);
+            if (!string.IsNullOrWhiteSpace(newToken))
+            {
+                await LoadTokenTelemetryAsync();
+                rotationError = false;
+                rotationMessage = $"Refresh token rotated successfully! New JWT JTI: {currentJti} (Valid until {tokenExpiresUtc:HH:mm:ss} UTC).";
+            }
+            else
+            {
+                rotationError = true;
+                rotationMessage = "Failed to rotate refresh token. Please sign in again to issue a fresh token pair.";
+            }
+        }
+        catch (Exception ex)
+        {
+            rotationError = true;
+            rotationMessage = $"Refresh token rotation error: {ex.Message}";
+        }
+        finally
+        {
+            isRotating = false;
+        }
+    }
+}

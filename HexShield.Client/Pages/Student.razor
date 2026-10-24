@@ -156,19 +156,19 @@
                 <div class="workspace-tabs">
                     <button type="button" class="ws-tab @(activeTab == "lessons" ? "active" : "")"
                             @onclick='() => activeTab = "lessons"'>
-                        📖 Lessons &amp; Content (@courseLessons.Count)
+                        <i class="fa-solid fa-chalkboard"></i> Lessons &amp; Content (@courseLessons.Count)
                     </button>
                     <button type="button" class="ws-tab @(activeTab == "assignments" ? "active" : "")"
                             @onclick='() => activeTab = "assignments"'>
-                        📝 Assignments &amp; Grades (@courseAssignments.Count)
+                        <i class="fa-solid fa-clipboard"></i> Assignments &amp; Grades (@courseAssignments.Count)
                     </button>
                     <button type="button" class="ws-tab @(activeTab == "quizzes" ? "active" : "")"
                             @onclick='() => activeTab = "quizzes"'>
-                        ⏱️ Quizzes &amp; Attempts (@courseQuizzes.Count)
+                        <i class="fa-solid fa-stopwatch"></i> Quizzes &amp; Attempts (@courseQuizzes.Count)
                     </button>
                     <button type="button" class="ws-tab @(activeTab == "attendance" ? "active" : "")"
                             @onclick='() => activeTab = "attendance"'>
-                        📊 Attendance &amp; Progress (@myAttendance.Count)
+                        <i class="fa-solid fa-chart-bar"></i> Attendance &amp; Progress (@myAttendance.Count)
                     </button>
                 </div>
 
@@ -291,7 +291,7 @@
                                                 <p>@sub.Content</p>
                                                 @if (!string.IsNullOrWhiteSpace(sub.AttachmentUrl))
                                                 {
-                                                    <a href="@sub.AttachmentUrl" target="_blank" class="attach-link">🔗 @sub.AttachmentUrl</a>
+                                                    <a href="@sub.AttachmentUrl" target="_blank" class="attach-link"><i class="fa-solid fa-link"></i> @sub.AttachmentUrl</a>
                                                 }
                                                 @if (!string.IsNullOrWhiteSpace(sub.Feedback))
                                                 {
@@ -304,7 +304,7 @@
 
                                         <div class="item-card-footer">
                                             <button type="button" class="btn-primary" @onclick="() => OpenSubmissionModal(assign, sub)">
-                                                @(sub == null ? "📤 Submit Assignment" : "✏️ Update Submission")
+                                                @(sub == null ? "Submit Assignment" : "Update Submission")
                                             </button>
                                         </div>
                                     </div>
@@ -337,7 +337,7 @@
                                             <div>
                                                 <h4>@quiz.Title</h4>
                                                 <span class="due-text">
-                                                    ⏱️ @quiz.TimeLimitMinutes mins · 🎯 Pass: @quiz.PassPercentage% · ❓ @quiz.QuestionCount Questions · Max Attempts: @quiz.MaxAttempts
+                                                    <i class="fa-solid fa-stopwatch"></i> @quiz.TimeLimitMinutes mins · <i class="fa-solid fa-bullseye"></i> Pass: @quiz.PassPercentage% · <i class="fa-solid fa-list-ol"></i> @quiz.QuestionCount Questions · Max Attempts: @quiz.MaxAttempts
                                                 </span>
                                             </div>
                                             @if (completedAttempts.Any())
@@ -372,7 +372,7 @@
                                             <button type="button" class="btn-primary"
                                                     disabled="@(completedAttempts.Count >= quiz.MaxAttempts)"
                                                     @onclick="() => StartQuizAttempt(quiz.Id)">
-                                                @(completedAttempts.Count >= quiz.MaxAttempts ? "Max Attempts Reached" : "▶️ Start Quiz Attempt")
+                                                @(completedAttempts.Count >= quiz.MaxAttempts ? "Max Attempts Reached" : "▶ Start Quiz Attempt")
                                             </button>
                                         </div>
                                     </div>
